@@ -5,9 +5,9 @@ import { byDay, row } from '../hooks/kpi'
 
 const tip = { wrong: 'a', fix: 'b', note: '', category: 'other' }
 const turns: Turn[] = [
-  { turnId: 't1', ts: Date.UTC(2026, 9, 6, 10), words: 20, level: 1, tips: [tip, tip] },
-  { turnId: 't2', ts: Date.UTC(2026, 9, 7, 10), words: 30, level: 1, tips: [] },
-  { turnId: 't3', ts: Date.UTC(2026, 9, 7, 11), words: 50, level: 2, tips: [tip] },
+  { turnId: 't1', ts: new Date(2026, 9, 6, 10).getTime(), words: 20, level: 1, tips: [tip, tip] },
+  { turnId: 't2', ts: new Date(2026, 9, 7, 10).getTime(), words: 30, level: 1, tips: [] },
+  { turnId: 't3', ts: new Date(2026, 9, 7, 11).getTime(), words: 50, level: 2, tips: [tip] },
 ]
 
 test('row computes findings per turn, errors per 100 words and clean rate', async () => {

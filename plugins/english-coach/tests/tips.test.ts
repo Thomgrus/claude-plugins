@@ -35,3 +35,15 @@ test('splitTips skips a tip line it cannot read and keeps the others', async () 
 test('countWords skips code, inline code and links', async () => {
   expect(countWords('Run `npm test` then\n```\nls -la\n```\nsee https://example.com now 42')).toBe(4)
 })
+
+test('splitTips reads a none line as a clean message, in its common spellings', async () => {
+  for (const line of ['English tips: none', '**English tips:** none', 'English tips: (none)', '`English tips: none` — all good']) {
+    expect(splitTips(`Done.\n${line}`)?.tips).toEqual([])
+  }
+})
+
+test('splitTips ignores a tips list inside a code fence', async () => {
+  const fenced = ['```', 'English tips:', '- "a" → "b"', '```'].join('\n')
+  expect(splitTips(fenced)).toBeNull()
+  expect(splitTips(`${fenced}\nEnglish tips:\n- "c" → "d"`)?.tips).toEqual([{ wrong: 'c', fix: 'd', note: '', category: '' }])
+})
