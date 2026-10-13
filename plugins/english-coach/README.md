@@ -24,6 +24,13 @@ Restart Claude Code. Your first message creates the progress file at `~/.claude/
 - **History**: each turn is stored in the plugin's store, one key per session. See [docs/decisions](docs/decisions/2026-10-13-turn-history-in-store-one-key-per-session.md).
 - **Roll-ups**: sessions older than last month are rolled up into monthly totals when a session starts. See [docs/decisions](docs/decisions/2026-10-07-monthly-roll-ups-one-key-per-rolled-session.md).
 
+## Limitations
+
+- **Surfaces**: used in the terminal and in Claude Code Desktop. Not tested in the VS Code extension.
+- **Pasted text**: Haiku is told to ignore code and pasted or quoted text, but pasted text still counts toward the word totals. A message is cut at 8,000 characters before the check.
+- **Parallel sessions**: turns are never lost, since each session has its own key. Two sessions that start together can both run the Sonnet review. The review checks that the progress file did not change before writing it, but that is not a lock.
+- **Privacy**: every message you type is sent to Haiku. The store and the progress file keep excerpts of your messages in plain text.
+
 ## Development
 
 ```bash
