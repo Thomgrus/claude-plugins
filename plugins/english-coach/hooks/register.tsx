@@ -9,6 +9,8 @@ import { cheer, countWords, splitTips } from './tips'
 const PANE = 'english'
 const COUNTED = ['composer', 'bridge']
 const CUT = 8000
+const NATIVE_KEY = 'english-coach.nativeLanguage'
+const NATIVE_QUESTION = 'The English coach looks for the calques and false friends your native language brings. Which one is it?'
 const NATIVE_HINT = '_Set `english-coach.nativeLanguage` in `/config`: the coach then looks for the calques and false friends your native language brings._'
 
 const revision = atom({ plugin: 'english-coach', key: 'revision' } as const, 0)
@@ -69,6 +71,15 @@ async function review($: Pick<EngineInterface, 'model' | 'store' | 'clock' | 'en
     .catch(error => $.ui.log(`progress.md was rewritten but review:at was not saved: ${String(error)}`))
 }
 
+async function askNative($: Pick<EngineInterface, 'store' | 'ui' | 'config'>) {
+  if ((await $.store.get('native:asked')) !== undefined) return
+  await $.store.set('native:asked', true)
+  const value = (await $.ui.ask(NATIVE_QUESTION, { options: ['French', 'Spanish', 'German'], header: 'English' })).trim()
+  if (value === '') return
+  const { deny } = await $.config.set({ key: NATIVE_KEY, value })
+  if (deny !== undefined) $.ui.log(`the native language was not saved: ${deny}`)
+}
+
 async function rollUp($: Pick<EngineInterface, 'store' | 'clock' | 'session'>) {
   const before = rawFrom(await $.clock.now())
   const current = `session:${await $.session.id()}`
@@ -114,6 +125,7 @@ export const register: Register = (on, options) => {
       .catch(error => $.ui.log(`/english was not registered: ${String(error)}`))
     await update($, check, () => null).catch(error => $.ui.log(`the check band was not reset: ${String(error)}`))
     $.clock.after(0, () => review($).catch(error => $.ui.log(`the progress review failed: ${String(error)}`)))
+    if (native === '' && e.isInteractive) $.clock.after(0, () => askNative($).catch(error => $.ui.log(`the native language was not asked: ${String(error)}`)))
     await rollUp($).catch(error => $.ui.log(`the roll-up failed: ${String(error)}`))
     return next(e)
   })
