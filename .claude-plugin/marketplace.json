@@ -1,0 +1,12 @@
+{
+  "name": "tgruson-public",
+  "description": "Claude Code plugins by Thomas GRUSON",
+  "owner": { "name": "Thomas GRUSON" },
+  "plugins": [
+    {
+      "name": "english-coach",
+      "source": "./plugins/english-coach",
+      "description": "English coach for Claude Code: tips in their own card, progress pane and KPIs across sessions"
+    }
+  ]
+}
