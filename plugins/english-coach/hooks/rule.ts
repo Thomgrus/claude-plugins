@@ -96,4 +96,8 @@ Unknown yet.
 ## Log
 `
 
+export const nativeUnknown = (progress: string) => /^## Native language\s+Unknown yet\./m.test(progress)
+
+export const askNative = (path: string) => `set your native language in ${path}: the coach then looks for the calques it brings`
+
 export const levelOf = (progress: string) => Number(/Current tip level:\s*(\d)/.exec(progress)?.[1] ?? 1)

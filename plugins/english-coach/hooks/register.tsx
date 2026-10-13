@@ -3,7 +3,7 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Monthly, Tip, Turn } from '../types'
 import { add, barChart, byDay, byMonth, day, merge, monthly, rawFrom, recent, row, table, totalsRow, ZERO } from './kpi'
-import { ask, COACH, keepsSections, levelOf, PROGRESS_PATH, REVIEW, REVIEW_AFTER, reviewAsk, TEMPLATE, unwrap } from './rule'
+import { ask, askNative, COACH, keepsSections, levelOf, nativeUnknown, PROGRESS_PATH, REVIEW, REVIEW_AFTER, reviewAsk, TEMPLATE, unwrap } from './rule'
 import { cheer, countWords, splitTips } from './tips'
 
 const PANE = 'english'
@@ -14,6 +14,7 @@ const revision = atom({ plugin: 'english-coach', key: 'revision' } as const, 0)
 const check = atom({ plugin: 'english-coach', key: 'check' } as const, null)
 
 let saving: Promise<unknown> = Promise.resolve()
+let asked = ''
 
 async function progressPath($: Pick<EngineInterface, 'env'>) {
   const home = (await $.env.get('HOME')) || (await $.env.get('USERPROFILE'))
@@ -123,6 +124,10 @@ export const register: Register = on => {
       if (!(await $.fs.exists(path))) await $.fs.write(path, TEMPLATE)
       const progress = await $.fs.read(path)
       const [id, session] = await Promise.all([$.clock.now(), $.session.id()])
+      if (session !== asked && nativeUnknown(progress)) {
+        asked = session
+        $.ui.log(askNative(path))
+      }
       const text = e.text.slice(0, CUT).replace(/[\uD800-\uDBFF]$/, '')
       await update($, check, () => ({ id, tips: null }))
       $.clock.after(0, () =>
