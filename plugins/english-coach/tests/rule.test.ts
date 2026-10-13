@@ -1,4 +1,8 @@
 import { expect, test } from 'claude-code/testing'
+import type { TestBody } from 'claude-code/testing'
+import type { ModelCompleteResult } from 'claude-code'
+
+import { keepsSections, reviewAsk, TEMPLATE, unwrap } from '../hooks/rule'
 
 const USAGE = { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 }
 const TIPS = 'English tips:\n- "doing effort" → "making an effort" [calque]'
@@ -140,4 +144,118 @@ test('the review writes the file Sonnet returns without the progress tags it was
   await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: true })
   await write
   expect(written).toEqual([PROGRESS])
+})
+
+const reviewRun = async (
+  $: Parameters<TestBody>[0],
+  on: Parameters<TestBody>[1],
+  reply: ModelCompleteResult,
+  reads: string[] = [PROGRESS, PROGRESS],
+) => {
+  const turns = Array.from({ length: 10 }, (_, i) => ({ turnId: String(i), ts: i + 1, words: 5, level: 2, tips: [] }))
+  const writes: string[] = []
+  const sets: unknown[] = []
+  let stored: (value: unknown) => void = () => undefined
+  const saved = new Promise(resolve => (stored = resolve))
+  on('session.id', () => ({ value: 'me' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: 1000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('command.register', () => ({ value: { command: 'english' } }))
+  on('store.keys', () => ({ value: ['session:a'] }))
+  on('store.get', (_$, e) => ({ value: e.key === 'session:a' ? turns : undefined }))
+  on('store.set', (_$, e) => {
+    sets.push(e)
+    stored(e)
+    return { value: undefined }
+  })
+  on('fs.read', () => ({ value: reads.shift() ?? PROGRESS }))
+  on('fs.write', (_$, e) => {
+    writes.push(e.text)
+    return { value: undefined }
+  })
+  on('model.complete', () => ({ value: reply }))
+  const logged = new Promise(resolve =>
+    on('ui.log', (_$, e) => {
+      resolve(e.text)
+      return { value: undefined }
+    }),
+  )
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: true })
+  return { logged, saved, writes, sets }
+}
+
+test('a review that hits the token cap is logged and writes nothing', async ($, on) => {
+  const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: { ...USAGE, output_tokens: 4000 } })
+  expect(String(await run.logged)).toContain('the progress review failed (the reply hit the token cap)')
+  expect(run.writes).toEqual([])
+})
+
+test('a review that loses a section is logged and writes nothing', async ($, on) => {
+  const run = await reviewRun($, on, { isAnswered: true, text: '# English progress\n\nNothing here.', usage: USAGE })
+  expect(String(await run.logged)).toContain('the progress review failed (the reply lost a section)')
+  expect(run.writes).toEqual([])
+})
+
+test('a review is dropped when progress.md changed meanwhile', async ($, on) => {
+  const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: USAGE }, [PROGRESS, `${PROGRESS}\nedited`])
+  expect(String(await run.logged)).toContain('the progress review was dropped: progress.md changed meanwhile')
+  expect(run.writes).toEqual([])
+  expect(run.sets).toEqual([])
+})
+
+test('a review that gets no response logs the reason', async ($, on) => {
+  const run = await reviewRun($, on, { isAnswered: false, reason: 'api-error', status: null, error: 'unknown', usage: USAGE })
+  expect(String(await run.logged)).toContain('the progress review failed (api-error no response unknown)')
+})
+
+test('a written review moves review:at to the newest reviewed turn', async ($, on) => {
+  const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: USAGE })
+  expect(await run.saved).toEqual({ key: 'review:at', value: 10 })
+  expect(run.writes).toEqual([PROGRESS])
+})
+
+test('a failed turn save is logged', async ($, on) => {
+  on('session.id', () => ({ value: 'a' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: 1000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: PROGRESS }))
+  on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('model.complete', () => ({ value: { isAnswered: true, text: TIPS, usage: USAGE } }))
+  on('store.get', () => ({ value: undefined }))
+  on('store.set', () => {
+    throw new Error('store full')
+  })
+  const logged = new Promise(resolve =>
+    on('ui.log', ($, e) => {
+      resolve(e.text)
+      return { value: undefined }
+    }),
+  )
+
+  await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
+  expect(String(await logged)).toContain('the turn was not saved')
+})
+
+test('unwrap strips a BOM, the progress tags and a CRLF code fence', async () => {
+  expect(unwrap('\uFEFFHere it is:\n<progress>\n```markdown\r\n# English progress\r\n```\n</progress>')).toBe('# English progress')
+  expect(unwrap('  # English progress\n')).toBe('# English progress')
+})
+
+test('keepsSections reads CRLF and trailing spaces, and refuses a lost heading, title or level', async () => {
+  expect(keepsSections(TEMPLATE, TEMPLATE.replace(/\n/g, '  \r\n'))).toBe(true)
+  expect(keepsSections(TEMPLATE, TEMPLATE.replace('## Mastered\n', ''))).toBe(false)
+  expect(keepsSections(TEMPLATE, TEMPLATE.replace('# English progress', '# Progress'))).toBe(false)
+  expect(keepsSections(TEMPLATE, TEMPLATE.replace('## Current tip level: 1 (Basics)', '## Current tip level'))).toBe(false)
+})
+
+test('reviewAsk lists every tip and leaves out an empty category', async () => {
+  const turns = [
+    { turnId: 'a', ts: 1, words: 3, level: 1, tips: [{ wrong: 'x', fix: 'y', note: '', category: '' }, { wrong: 'p', fix: 'q', note: '', category: 'calque' }] },
+    { turnId: 'b', ts: 2, words: 3, level: 1, tips: [] },
+  ]
+  expect(reviewAsk('file', '2026-10-13', turns)).toContain('<tips messages="2" clean="1">\n- "x" → "y"\n- "p" → "q" [calque]\n</tips>')
 })
