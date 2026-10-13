@@ -182,7 +182,7 @@ const reviewRun = async (
     }),
   )
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
-  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: true })
+  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: false })
   return { logged, saved, writes, sets }
 }
 

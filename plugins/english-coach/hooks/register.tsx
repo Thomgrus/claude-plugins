@@ -9,6 +9,9 @@ import { cheer, countWords, splitTips } from './tips'
 const PANE = 'english'
 const COUNTED = ['composer', 'bridge']
 const CUT = 8000
+const NATIVE_KEY = 'english-coach.nativeLanguage'
+const NATIVE_QUESTION = 'The English coach looks for the calques and false friends your native language brings. Which one is it?'
+const NATIVE_HINT = '_Set `english-coach.nativeLanguage` in `/config`: the coach then looks for the calques and false friends your native language brings._'
 
 const revision = atom({ plugin: 'english-coach', key: 'revision' } as const, 0)
 const check = atom({ plugin: 'english-coach', key: 'check' } as const, null)
@@ -27,8 +30,8 @@ const why = (reply: { reason: string; status?: number | null; error?: string }) 
 const sessions = ($: Pick<EngineInterface, 'store'>, keys: string[]) =>
   Promise.all(keys.map(async key => ((await $.store.get(key)) ?? []) as Turn[]))
 
-async function coach($: Pick<EngineInterface, 'model' | 'store' | 'state' | 'ui'>, id: number, session: string, progress: string, text: string) {
-  const reply = await $.model.complete({ model: 'haiku', system: COACH, prompt: ask(progress, text), maxTokens: 600, effort: 'low', timeoutMs: 30000 })
+async function coach($: Pick<EngineInterface, 'model' | 'store' | 'state' | 'ui'>, id: number, session: string, progress: string, native: string, text: string) {
+  const reply = await $.model.complete({ model: 'haiku', system: COACH, prompt: ask(progress, native, text), maxTokens: 600, effort: 'low', timeoutMs: 30000 })
   const tips = reply.isAnswered ? splitTips(reply.text)?.tips : undefined
   if (tips === undefined) {
     await update($, check, current => (current?.id === id ? null : current))
@@ -68,6 +71,15 @@ async function review($: Pick<EngineInterface, 'model' | 'store' | 'clock' | 'en
     .catch(error => $.ui.log(`progress.md was rewritten but review:at was not saved: ${String(error)}`))
 }
 
+async function askNative($: Pick<EngineInterface, 'store' | 'ui' | 'config'>) {
+  if ((await $.store.get('native:asked')) !== undefined) return
+  await $.store.set('native:asked', true)
+  const value = (await $.ui.ask(NATIVE_QUESTION, { options: ['French', 'Spanish', 'German'], header: 'English' })).trim()
+  if (value === '') return
+  const { deny } = await $.config.set({ key: NATIVE_KEY, value })
+  if (deny !== undefined) $.ui.log(`the native language was not saved: ${deny}`)
+}
+
 async function rollUp($: Pick<EngineInterface, 'store' | 'clock' | 'session'>) {
   const before = rawFrom(await $.clock.now())
   const current = `session:${await $.session.id()}`
@@ -104,13 +116,16 @@ function card({ Box, Text }: ReturnType<EngineInterface['ui']['resolve']>, tips:
   )
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const native = String(options.nativeLanguage ?? '').trim()
+
   on('session.start', async ($, e, next) => {
     await $.command
       .register({ name: 'english', description: 'Open the English coach pane', immediate: true })
       .catch(error => $.ui.log(`/english was not registered: ${String(error)}`))
     await update($, check, () => null).catch(error => $.ui.log(`the check band was not reset: ${String(error)}`))
     $.clock.after(0, () => review($).catch(error => $.ui.log(`the progress review failed: ${String(error)}`)))
+    if (native === '' && e.isInteractive) $.clock.after(0, () => askNative($).catch(error => $.ui.log(`the native language was not asked: ${String(error)}`)))
     await rollUp($).catch(error => $.ui.log(`the roll-up failed: ${String(error)}`))
     return next(e)
   })
@@ -126,7 +141,7 @@ export const register: Register = on => {
       const text = e.text.slice(0, CUT).replace(/[\uD800-\uDBFF]$/, '')
       await update($, check, () => ({ id, tips: null }))
       $.clock.after(0, () =>
-        coach($, id, session, progress, text).catch(async error => {
+        coach($, id, session, progress, native, text).catch(async error => {
           $.ui.log(`the check failed: ${String(error)}`)
           await update($, check, current => (current?.id === id && current.tips === null ? null : current)).catch(cleared =>
             $.ui.log(`the check band was not cleared: ${String(cleared)}`),
@@ -204,6 +219,7 @@ export const register: Register = on => {
     const { Box, Markdown } = ui
     return (
       <Box flexDirection="column" gap={1}>
+        {native === '' && <Markdown text={NATIVE_HINT} />}
         <Markdown text={summary} />
         {e.surface !== 'terminal' && 'Svg' in ui && <ui.Svg source={barChart(all)} alt={`Findings per turn for the last ${Math.min(all.length, 30)} turns`} />}
         <Markdown text={daily} />

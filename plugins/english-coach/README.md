@@ -14,7 +14,7 @@ claude plugin marketplace add Thomgrus/claude-plugins
 claude plugin install english-coach@tgruson-public
 ```
 
-Restart Claude Code. Your first message creates the progress file at `~/.claude/english-coach/progress.md`. Edit it if you want: set your native language, or start at a higher tip level.
+Restart Claude Code. The first session asks for your native language, unless the install already did: the coach uses it to look for the calques and false friends it brings. Change it later in `/config` (*Native language · english-coach*). Your first message creates the progress file at `~/.claude/english-coach/progress.md`; edit it to start at a higher tip level.
 
 ## How it works
 

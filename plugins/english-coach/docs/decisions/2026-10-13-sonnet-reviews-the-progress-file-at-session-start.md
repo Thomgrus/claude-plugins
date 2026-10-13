@@ -6,7 +6,7 @@ Accepted
 
 ## Context
 
-The progress file (`~/.claude/english-coach/progress.md`) tracks the learner's native language, tip level, recurring mistakes and mastered patterns. Haiku reads it on every check to pick which mistakes matter. Keeping it up to date through the main agent would cost a rule in its context on every session (about 700 tokens, sent again after a compaction) and Edit calls in the main conversation. The tips Haiku gives are already stored per message in `$.store`, with their category: a better source.
+The progress file (`~/.claude/english-coach/progress.md`) tracks the learner's tip level, recurring mistakes and mastered patterns; their native language is a plugin setting ([Haiku checks each message](2026-10-13-haiku-checks-each-message-in-the-background.md)). Haiku reads it on every check to pick which mistakes matter. Keeping it up to date through the main agent would cost a rule in its context on every session (about 700 tokens, sent again after a compaction) and Edit calls in the main conversation. The tips Haiku gives are already stored per message in `$.store`, with their category: a better source.
 
 ## Decision
 
