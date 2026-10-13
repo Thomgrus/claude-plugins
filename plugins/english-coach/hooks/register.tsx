@@ -3,18 +3,18 @@ import type { EngineInterface, Register } from 'claude-code'
 
 import type { Monthly, Tip, Turn } from '../types'
 import { add, barChart, byDay, byMonth, day, merge, monthly, rawFrom, recent, row, table, totalsRow, ZERO } from './kpi'
-import { ask, askNative, COACH, keepsSections, levelOf, nativeUnknown, PROGRESS_PATH, REVIEW, REVIEW_AFTER, reviewAsk, TEMPLATE, unwrap } from './rule'
+import { ask, COACH, keepsSections, levelOf, PROGRESS_PATH, REVIEW, REVIEW_AFTER, reviewAsk, TEMPLATE, unwrap } from './rule'
 import { cheer, countWords, splitTips } from './tips'
 
 const PANE = 'english'
 const COUNTED = ['composer', 'bridge']
 const CUT = 8000
+const NATIVE_HINT = '_Set `english-coach.nativeLanguage` in `/config`: the coach then looks for the calques and false friends your native language brings._'
 
 const revision = atom({ plugin: 'english-coach', key: 'revision' } as const, 0)
 const check = atom({ plugin: 'english-coach', key: 'check' } as const, null)
 
 let saving: Promise<unknown> = Promise.resolve()
-let asked = ''
 
 async function progressPath($: Pick<EngineInterface, 'env'>) {
   const home = (await $.env.get('HOME')) || (await $.env.get('USERPROFILE'))
@@ -28,8 +28,8 @@ const why = (reply: { reason: string; status?: number | null; error?: string }) 
 const sessions = ($: Pick<EngineInterface, 'store'>, keys: string[]) =>
   Promise.all(keys.map(async key => ((await $.store.get(key)) ?? []) as Turn[]))
 
-async function coach($: Pick<EngineInterface, 'model' | 'store' | 'state' | 'ui'>, id: number, session: string, progress: string, text: string) {
-  const reply = await $.model.complete({ model: 'haiku', system: COACH, prompt: ask(progress, text), maxTokens: 600, effort: 'low', timeoutMs: 30000 })
+async function coach($: Pick<EngineInterface, 'model' | 'store' | 'state' | 'ui'>, id: number, session: string, progress: string, native: string, text: string) {
+  const reply = await $.model.complete({ model: 'haiku', system: COACH, prompt: ask(progress, native, text), maxTokens: 600, effort: 'low', timeoutMs: 30000 })
   const tips = reply.isAnswered ? splitTips(reply.text)?.tips : undefined
   if (tips === undefined) {
     await update($, check, current => (current?.id === id ? null : current))
@@ -105,7 +105,9 @@ function card({ Box, Text }: ReturnType<EngineInterface['ui']['resolve']>, tips:
   )
 }
 
-export const register: Register = on => {
+export const register: Register = (on, options) => {
+  const native = String(options.nativeLanguage ?? '').trim()
+
   on('session.start', async ($, e, next) => {
     await $.command
       .register({ name: 'english', description: 'Open the English coach pane', immediate: true })
@@ -124,14 +126,10 @@ export const register: Register = on => {
       if (!(await $.fs.exists(path))) await $.fs.write(path, TEMPLATE)
       const progress = await $.fs.read(path)
       const [id, session] = await Promise.all([$.clock.now(), $.session.id()])
-      if (session !== asked && nativeUnknown(progress)) {
-        asked = session
-        $.ui.log(askNative(path))
-      }
       const text = e.text.slice(0, CUT).replace(/[\uD800-\uDBFF]$/, '')
       await update($, check, () => ({ id, tips: null }))
       $.clock.after(0, () =>
-        coach($, id, session, progress, text).catch(async error => {
+        coach($, id, session, progress, native, text).catch(async error => {
           $.ui.log(`the check failed: ${String(error)}`)
           await update($, check, current => (current?.id === id && current.tips === null ? null : current)).catch(cleared =>
             $.ui.log(`the check band was not cleared: ${String(cleared)}`),
@@ -209,6 +207,7 @@ export const register: Register = on => {
     const { Box, Markdown } = ui
     return (
       <Box flexDirection="column" gap={1}>
+        {native === '' && <Markdown text={NATIVE_HINT} />}
         <Markdown text={summary} />
         {e.surface !== 'terminal' && 'Svg' in ui && <ui.Svg source={barChart(all)} alt={`Findings per turn for the last ${Math.min(all.length, 30)} turns`} />}
         <Markdown text={daily} />
