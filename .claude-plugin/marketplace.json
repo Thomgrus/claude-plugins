@@ -7,6 +7,11 @@
       "name": "english-coach",
       "source": "./plugins/english-coach",
       "description": "English coach for Claude Code: tips in their own card, progress pane and KPIs across sessions"
+    },
+    {
+      "name": "codemap",
+      "source": "./plugins/codemap",
+      "description": "Find a local git repository by name, component, technology or domain, and keep a per-tenant index of your clones"
     }
   ]
 }
