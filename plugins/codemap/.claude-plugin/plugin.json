@@ -1,0 +1,23 @@
+{
+  "name": "codemap",
+  "version": "1.0.0",
+  "description": "Find a local git repository by name, component, technology or domain, and keep a per-tenant index of your clones",
+  "author": {
+    "name": "Thomas GRUSON"
+  },
+  "license": "MIT",
+  "userConfig": {
+    "linksDir": {
+      "type": "directory",
+      "title": "Symlink index",
+      "description": "Directory holding one symlink per local repository.",
+      "default": "~/repo"
+    },
+    "projectsDir": {
+      "type": "directory",
+      "title": "Projects root",
+      "description": "Root where repositories live, as <tenant>/<group path>/<repo>.",
+      "default": "~/Workspace/projects"
+    }
+  }
+}
