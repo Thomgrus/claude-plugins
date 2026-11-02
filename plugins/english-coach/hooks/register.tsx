@@ -12,6 +12,10 @@ const CUT = 8000
 const NATIVE_KEY = 'english-coach.nativeLanguage'
 const NATIVE_QUESTION = 'The English coach looks for the calques and false friends your native language brings. Which one is it?'
 const NATIVE_HINT = '_Set `english-coach.nativeLanguage` in `/config`: the coach then looks for the calques and false friends your native language brings._'
+const WORKTREE = /^gitdir:\s*(.+)\/\.git\/worktrees\/[^/]+\s*$/m
+const PAUSED_STATUS = 'English coach paused in this project · /english resume'
+const PAUSED_HINT = '**Paused in this project.** Your messages here are not checked or counted. Run `/english resume` to start again.'
+const USAGE = 'Usage: `/english` opens the pane, `/english pause` stops the checks in this project, `/english resume` starts them again.'
 
 const revision = atom({ plugin: 'english-coach', key: 'revision' } as const, 0)
 const check = atom({ plugin: 'english-coach', key: 'check' } as const, null)
@@ -27,11 +31,31 @@ async function progressPath($: Pick<EngineInterface, 'env'>) {
 const why = (reply: { reason: string; status?: number | null; error?: string }) =>
   reply.status === undefined ? reply.reason : `${reply.reason} ${reply.status ?? 'no response'} ${reply.error}`
 
+async function pausedKey($: Pick<EngineInterface, 'session' | 'fs'>) {
+  const cwd = await $.session.cwd()
+  const git = await $.fs.read(`${cwd}/.git`).catch(() => '')
+  return `paused:${WORKTREE.exec(git)?.[1] ?? cwd}`
+}
+
+const isPaused = async ($: Pick<EngineInterface, 'store' | 'session' | 'fs'>) => (await $.store.get(await pausedKey($))) === true
+
+async function setPaused($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'session' | 'fs'>, paused: boolean) {
+  const key = await pausedKey($)
+  await (paused ? $.store.set(key, true) : $.store.delete(key))
+  $.ui.status(paused ? PAUSED_STATUS : undefined)
+  if (paused) await update($, check, () => null)
+  await update($, revision, n => n + 1)
+}
+
 const sessions = ($: Pick<EngineInterface, 'store'>, keys: string[]) =>
   Promise.all(keys.map(async key => ((await $.store.get(key)) ?? []) as Turn[]))
 
-async function coach($: Pick<EngineInterface, 'model' | 'store' | 'state' | 'ui'>, id: number, session: string, progress: string, native: string, text: string) {
+async function coach($: Pick<EngineInterface, 'model' | 'store' | 'state' | 'ui' | 'session' | 'fs'>, id: number, session: string, progress: string, native: string, text: string) {
   const reply = await $.model.complete({ model: 'haiku', system: COACH, prompt: ask(progress, native, text), maxTokens: 600, effort: 'low', timeoutMs: 30000 })
+  if (await isPaused($)) {
+    await update($, check, current => (current?.id === id ? null : current))
+    return
+  }
   const tips = reply.isAnswered ? splitTips(reply.text)?.tips : undefined
   if (tips === undefined) {
     await update($, check, current => (current?.id === id ? null : current))
@@ -121,9 +145,13 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command
-      .register({ name: 'english', description: 'Open the English coach pane', immediate: true })
+      .register({ name: 'english', description: 'Open the English coach pane, or pause and resume the checks', argumentHint: '[pause|resume]', immediate: true })
       .catch(error => $.ui.log(`/english was not registered: ${String(error)}`))
     await update($, check, () => null).catch(error => $.ui.log(`the check band was not reset: ${String(error)}`))
+    await isPaused($).then(
+      paused => paused && $.ui.status(PAUSED_STATUS),
+      error => $.ui.log(`the pause state was not read: ${String(error)}`),
+    )
     $.clock.after(0, () => review($).catch(error => $.ui.log(`the progress review failed: ${String(error)}`)))
     if (native === '' && e.isInteractive) $.clock.after(0, () => askNative($).catch(error => $.ui.log(`the native language was not asked: ${String(error)}`)))
     await rollUp($).catch(error => $.ui.log(`the roll-up failed: ${String(error)}`))
@@ -134,6 +162,7 @@ export const register: Register = (on, options) => {
     const result = await next(e)
     if (!COUNTED.includes(e.origin.kind) || result.drop !== undefined) return result
     await (async () => {
+      if (await isPaused($)) return
       const path = await progressPath($)
       if (!(await $.fs.exists(path))) await $.fs.write(path, TEMPLATE)
       const progress = await $.fs.read(path)
@@ -152,7 +181,16 @@ export const register: Register = (on, options) => {
     return result
   })
 
-  on('command.run', { command: 'english' }, async $ => {
+  on('command.run', { command: 'english' }, async ($, e) => {
+    const arg = e.args.trim().toLowerCase()
+    if (arg === 'pause' || arg === 'resume') {
+      const paused = arg === 'pause'
+      return setPaused($, paused).then(
+        () => ({ text: paused ? 'English coach paused in this project: your messages here are not checked until `/english resume`.' : 'English coach resumed in this project: your messages here are checked again.' }),
+        error => ({ text: `the coach was not ${paused ? 'paused' : 'resumed'} (${String(error)})` }),
+      )
+    }
+    if (arg !== '') return { text: USAGE }
     const opened = await $.ui.open({ id: PANE, title: 'English coach' })
     return opened.isPlaced ? {} : { text: `the pane could not open (${opened.reason})` }
   })
@@ -198,10 +236,11 @@ export const register: Register = (on, options) => {
     await read($, revision)
     const keys = await $.store.keys()
     const sessionKeys = keys.filter(key => key.startsWith('session:'))
-    const [turns, rollups, id] = await Promise.all([
+    const [turns, rollups, id, paused] = await Promise.all([
       sessions($, sessionKeys),
       Promise.all(keys.filter(key => key.startsWith('rollup:')).map(async key => ((await $.store.get(key)) ?? {}) as Monthly)),
       $.session.id(),
+      isPaused($),
     ])
     const all = turns.flat().sort((x, y) => x.ts - y.ts)
     const months = merge([...rollups, monthly(all)])
@@ -219,6 +258,7 @@ export const register: Register = (on, options) => {
     const { Box, Markdown } = ui
     return (
       <Box flexDirection="column" gap={1}>
+        {paused && <Markdown text={PAUSED_HINT} />}
         {native === '' && <Markdown text={NATIVE_HINT} />}
         <Markdown text={summary} />
         {e.surface !== 'terminal' && 'Svg' in ui && <ui.Svg source={barChart(all)} alt={`Findings per turn for the last ${Math.min(all.length, 30)} turns`} />}
