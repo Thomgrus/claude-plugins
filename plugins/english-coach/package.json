@@ -6,7 +6,8 @@
     "types": "claude --plugin-dir . -p ok --model haiku --max-turns 1 > /dev/null",
     "typecheck": "tsc -p .",
     "test": "claude plugin test .",
-    "build": "claude plugin validate ."
+    "build": "claude plugin validate .",
+    "evals:generate": "node evals/generate.ts"
   },
   "devDependencies": {
     "typescript": "^5.9.0"
