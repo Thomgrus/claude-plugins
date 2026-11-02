@@ -196,9 +196,16 @@ const reviewRun = async (
 }
 
 test('a review that hits the token cap is logged and writes nothing', async ($, on) => {
-  const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: { ...USAGE, output_tokens: 4000 } })
+  const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: { ...USAGE, output_tokens: 64000 } })
   expect(String(await run.logged)).toContain('the progress review failed (the reply hit the token cap)')
   expect(run.writes).toEqual([])
+})
+
+test('a review of a long file is written past 4,000 output tokens, thinking included', async ($, on) => {
+  const long = `${PROGRESS}\n## Log\n\n${'- 2026-10-21: "doing effort" → "making an effort"\n'.repeat(150)}`
+  const run = await reviewRun($, on, { isAnswered: true, text: long, usage: { ...USAGE, output_tokens: 4561 } }, [long, long])
+  expect(await run.saved).toEqual({ key: 'review:at', value: 10 })
+  expect(run.writes).toEqual([`${long.trim()}\n`])
 })
 
 test('a review that loses a section is logged and writes nothing', async ($, on) => {
