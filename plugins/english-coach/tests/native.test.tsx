@@ -16,6 +16,7 @@ test('ask adds the native language tag only when it is set', async () => {
 
 test('the native language setting reaches Haiku', { options: { nativeLanguage: ' French ' } }, async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
@@ -47,6 +48,7 @@ const start = async (
   const done = new Promise<void>(resolve => (settle = resolve))
   const checked = new Promise<void>(resolve => (read = resolve))
   on('session.id', () => ({ value: 'me' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => {
@@ -124,7 +126,9 @@ test('a refused save is logged', async ($, on) => {
 
 test('the pane shows the setting hint only while it is empty', async ($, on) => {
   on('store.keys', () => ({ value: [] }))
+  on('store.get', () => ({ value: undefined }))
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'terminal', component: 'Pane', requestId: 'english', props: PANE_PROPS })
   expect(await ui.find({ type: 'Markdown', text: HINT })).toBeDefined()
   await ui.unmount()
@@ -132,7 +136,9 @@ test('the pane shows the setting hint only while it is empty', async ($, on) => 
 
 test('the pane has no hint once the setting is filled', { options: { nativeLanguage: 'French' } }, async ($, on) => {
   on('store.keys', () => ({ value: [] }))
+  on('store.get', () => ({ value: undefined }))
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'terminal', component: 'Pane', requestId: 'english', props: PANE_PROPS })
   expect(await ui.find({ type: 'Markdown', text: HINT })).toBeUndefined()
   await ui.unmount()

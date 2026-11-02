@@ -34,6 +34,7 @@ test('the pane draws history from every session on desktop', async ($, on) => {
   on('store.keys', () => ({ value: ['session:a', 'session:b', 'other'] }))
   on('store.get', () => ({ value: [turn] }))
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   const ui = await $.ui.mount({
     plugin: 'english-coach',
     surface: 'desktop',
@@ -48,6 +49,7 @@ test('the pane draws history from every session on desktop', async ($, on) => {
 
 test('the band shows the coach tips above the prompt', async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))

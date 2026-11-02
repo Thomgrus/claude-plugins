@@ -12,6 +12,7 @@ const PROGRESS = '# English progress\n\n## Current tip level: 2 (Natural phrasin
 test('a missing progress file is created from the template', async ($, on) => {
   const written: string[] = []
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
@@ -23,6 +24,7 @@ test('a missing progress file is created from the template', async ($, on) => {
   })
   on('fs.read', () => ({ value: '' }))
   on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('store.get', () => ({ value: undefined }))
 
   await $.prompt.submit({ text: 'hello', wait: true, origin: { kind: 'composer' } })
   expect(written).toEqual(['/home/t/.claude/english-coach/progress.md'])
@@ -30,6 +32,7 @@ test('a missing progress file is created from the template', async ($, on) => {
 
 test('a checked message is stored as a turn with the coach tips', async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
@@ -54,6 +57,7 @@ test('a checked message is stored as a turn with the coach tips', async ($, on) 
 
 test('the check asks Haiku at low effort for up to 600 tokens', async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
@@ -76,12 +80,14 @@ test('the check asks Haiku at low effort for up to 600 tokens', async ($, on) =>
 test('a failed check is logged and stores no turn', async ($, on) => {
   const stored: unknown[] = []
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
   on('fs.exists', () => ({ value: true }))
   on('fs.read', () => ({ value: PROGRESS }))
   on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('store.get', () => ({ value: undefined }))
   on('model.complete', () => ({ value: { isAnswered: false, reason: 'api-error', status: 529, error: 'overloaded', usage: USAGE } }))
   on('store.set', ($, e) => {
     stored.push(e)
@@ -101,12 +107,14 @@ test('a failed check is logged and stores no turn', async ($, on) => {
 
 test('a reply without a tips list is logged with its start', async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
   on('fs.exists', () => ({ value: true }))
   on('fs.read', () => ({ value: PROGRESS }))
   on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('store.get', () => ({ value: undefined }))
   on('model.complete', () => ({ value: { isAnswered: true, text: 'Sure, here is my answer.', usage: USAGE } }))
   const logged = new Promise(resolve =>
     on('ui.log', ($, e) => {
@@ -158,6 +166,7 @@ const reviewRun = async (
   let stored: (value: unknown) => void = () => undefined
   const saved = new Promise(resolve => (stored = resolve))
   on('session.id', () => ({ value: 'me' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
@@ -169,7 +178,7 @@ const reviewRun = async (
     stored(e)
     return { value: undefined }
   })
-  on('fs.read', () => ({ value: reads.shift() ?? PROGRESS }))
+  on('fs.read', (_$, e) => ({ value: e.path === '/w/.git' ? '' : (reads.shift() ?? PROGRESS) }))
   on('fs.write', (_$, e) => {
     writes.push(e.text)
     return { value: undefined }
@@ -218,6 +227,7 @@ test('a written review moves review:at to the newest reviewed turn', async ($, o
 
 test('a failed turn save is logged', async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
   on('clock.now', () => ({ value: 1000 }))
   on('clock.after', () => ({ value: undefined }))
