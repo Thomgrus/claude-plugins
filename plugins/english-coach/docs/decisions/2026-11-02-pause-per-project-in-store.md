@@ -18,7 +18,7 @@ This does not cover a time-limited pause, or a pause for one session only.
 
 - `prompt.submit` returns before any Haiku call;
 - `coach()` checks again after Haiku answers, and drops the turn and its band if the project was paused in the meantime;
-- `session.start` sets the status line, and the pane shows a paused hint.
+- `session.start` sets the status line, `prompt.submit` sets or clears it on each message, and the pane shows a paused hint.
 
 One command carries it: `/english [pause|resume]`. A bare `/english` still opens the pane, and any other argument returns the usage line.
 
@@ -32,6 +32,6 @@ Not chosen:
 
 - All the worktrees of a repository share its pause. Pausing in one pauses the others and the main checkout.
 - Submodules, subfolders and symlinked paths each get their own key, since the key is the cwd string unless `.git` is a worktree file. A session started in a subfolder of a paused project is not paused.
-- The status line and the pane of other running sessions in the same project update only on their next submit or session start. The checks themselves stop at once, since `prompt.submit` reads the store each time.
+- Other sessions already open in the same project stop or restart their checks at once, since `prompt.submit` reads the store on each message. Their status line catches up on that same message. Their open pane shows the change only when it is reopened or a check redraws it.
 - A check already running when the pause lands still costs its Haiku call, but stores no turn and clears its band.
 - A paused project keeps its key in the store until `/english resume`. Nothing expires it.

@@ -162,7 +162,9 @@ export const register: Register = (on, options) => {
     const result = await next(e)
     if (!COUNTED.includes(e.origin.kind) || result.drop !== undefined) return result
     await (async () => {
-      if (await isPaused($)) return
+      const paused = await isPaused($)
+      $.ui.status(paused ? PAUSED_STATUS : undefined)
+      if (paused) return
       const path = await progressPath($)
       if (!(await $.fs.exists(path))) await $.fs.write(path, TEMPLATE)
       const progress = await $.fs.read(path)

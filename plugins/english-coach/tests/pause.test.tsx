@@ -88,6 +88,23 @@ test('a paused project sends nothing to Haiku and stores no turn', async ($, on)
   expect([...store.keys()]).toEqual(['paused:/w'])
 })
 
+test('each message refreshes the status from the stored pause', async ($, on) => {
+  const clock = mock.clock(on, { now: 1000 })
+  const { store, statuses } = project(on)
+  on('model.complete', () => ({ value: { isAnswered: true, text: TIPS, usage: USAGE } }))
+  on('prompt.submit', (_$, e) => ({ text: e.text, context: e.context }))
+
+  store.set('paused:/w', true)
+  await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
+  await clock.settle()
+  expect(statuses.at(-1)).toBe(STATUS)
+
+  store.delete('paused:/w')
+  await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
+  await clock.settle()
+  expect(statuses).toEqual([STATUS, undefined])
+})
+
 test('a check that ends after the project was paused stores no turn and clears its band', async ($, on) => {
   const clock = mock.clock(on, { now: 1000 })
   const { store } = project(on)
