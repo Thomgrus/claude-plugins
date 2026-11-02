@@ -9,6 +9,8 @@ type Entry = { id: string; message: string; mistakes?: Mistake[]; traps?: string
 
 const NATIVE = 'French'
 
+const TOOLS = ['Read', 'Glob', 'Grep', 'NotebookRead', 'Skill', 'AskUserQuestion', 'Agent', 'TodoWrite', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'ToolSearch']
+
 const NONE = '^[ \\t]*(?:#+[ \\t]*)?[`*]*English tips:?[`*]*:?[ \\t]*[`*(]*none\\b'
 const LIST = '^[ \\t]*(?:#+[ \\t]*)?(?:\\*\\*)?English tips:?(?:\\*\\*)?:?[ \\t]*\\n(?:[ \\t]*\\n)*[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“][^\\n]+?["”][ \\t]*(?:→|->|=>)[ \\t]*["“][^\\n]+?["”]'
 const tipOn = (fragment: string) => `^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“][^"”\\n]*(?:${fragment})[^"”\\n]*["”][ \\t]*(?:→|->|=>)`
@@ -43,6 +45,7 @@ const caseFile = (entry: Entry) => {
     execution: {
       model: 'haiku',
       max_turns: 1,
+      disallowed_tools: TOOLS,
       append_system_prompt: COACH,
       prompt: ask(TEMPLATE, NATIVE, entry.message),
     },
