@@ -166,7 +166,10 @@ export const register: Register = (on, options) => {
       $.ui.status(paused ? PAUSED_STATUS : undefined)
       if (paused) return
       const text = stripPasted(e.text).slice(0, CUT).replace(/[\uD800-\uDBFF]$/, '')
-      if (countWords(text) === 0) return
+      if (countWords(text) === 0) {
+        await update($, check, () => null)
+        return
+      }
       const path = await progressPath($)
       if (!(await $.fs.exists(path))) await $.fs.write(path, TEMPLATE)
       const progress = await $.fs.read(path)
