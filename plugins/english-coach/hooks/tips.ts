@@ -41,7 +41,7 @@ export const splitTips = (text: string) => {
 
   return {
     body: lines.slice(0, start).join('\n').trimEnd(),
-    tips,
+    tips: tips.filter(tip => tip.wrong.trim() !== tip.fix.trim()),
     tail: lines.slice(end).join('\n').trim(),
   }
 }
