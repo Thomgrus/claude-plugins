@@ -11,15 +11,18 @@ const CLOSE = /^\s*(`{3,}|~{3,})\s*$/
 
 const fenced = (lines: string[]) => {
   let fence = ''
-  return lines.map(line => {
+  let opened = -1
+  const marks = lines.map((line, i) => {
     if (fence !== '') {
       const close = CLOSE.exec(line)?.[1] ?? ''
       if (close[0] === fence[0] && close.length >= fence.length) fence = ''
       return true
     }
     fence = OPEN.exec(line)?.[1] ?? ''
+    if (fence !== '') opened = i
     return fence !== ''
   })
+  return { marks, unclosed: fence !== '' ? opened : -1 }
 }
 
 const toTip = (match: RegExpExecArray): Tip => {
@@ -35,7 +38,8 @@ const toTip = (match: RegExpExecArray): Tip => {
 export const splitTips = (text: string) => {
   if (!/english tips/i.test(text)) return null
   const lines = text.split(/\r?\n/)
-  const inFence = fenced(lines)
+  const { marks, unclosed } = fenced(lines)
+  const inFence = unclosed < 0 ? marks : marks.map((mark, i) => mark && i < unclosed)
   const none = lines.findLastIndex((line, i) => !inFence[i] && NONE.test(line))
   if (none >= 0) {
     return { body: lines.slice(0, none).join('\n').trimEnd(), tips: [] as Tip[], tail: lines.slice(none + 1).join('\n').trim() }
@@ -64,7 +68,7 @@ export const splitTips = (text: string) => {
 
 export const stripPasted = (text: string) => {
   const lines = text.split(/\r?\n/)
-  const inFence = fenced(lines)
+  const inFence = fenced(lines).marks
   return lines
     .filter((line, i) => !inFence[i] && !/^\s*>/.test(line))
     .join('\n')
