@@ -46,6 +46,22 @@ export const splitTips = (text: string) => {
   }
 }
 
+export const stripPasted = (text: string) => {
+  const kept: string[] = []
+  let fence = ''
+  for (const line of text.split(/\r?\n/)) {
+    const marker = /^\s*(```|~~~)/.exec(line)?.[1] ?? ''
+    if (fence !== '') {
+      if (marker === fence) fence = ''
+    } else if (marker !== '') fence = marker
+    else if (!/^\s*>/.test(line)) kept.push(line)
+  }
+  return kept
+    .join('\n')
+    .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n')
+    .trim()
+}
+
 export const countWords = (text: string) =>
   text
     .replace(/```[\s\S]*?```/g, ' ')
