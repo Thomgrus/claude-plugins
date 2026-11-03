@@ -1,6 +1,24 @@
 import { expect, test } from 'claude-code/testing'
 
-import { countWords, splitTips } from '../hooks/tips'
+import { countWords, splitTips, stripPasted } from '../hooks/tips'
+
+test('stripPasted removes blockquote lines, nested and indented ones included', async () => {
+  expect(stripPasted('The customer wrote:\n> i have buy your product\n  > > since three month\nCan you answer?')).toBe('The customer wrote:\nCan you answer?')
+})
+
+test('stripPasted removes fenced blocks of backticks and tildes, and keeps inline code', async () => {
+  const text = ['Fix `parse` please.', '```ts', '// the user have rights', '```', '', '', 'Then:', '~~~', 'Erreur : fichier introuvable', '```', 'still inside', '~~~', 'Thanks.'].join('\n')
+  expect(stripPasted(text)).toBe('Fix `parse` please.\n\nThen:\nThanks.')
+})
+
+test('stripPasted runs an unclosed fence to the end of the message', async () => {
+  expect(stripPasted('Here is the log:\n```\nerror who make crash\nmore')).toBe('Here is the log:')
+})
+
+test('stripPasted leaves nothing of a message that is only a fence', async () => {
+  expect(stripPasted('```\nfix: correct the bug who make crash\n```\n')).toBe('')
+  expect(countWords(stripPasted('```\nfix: correct the bug who make crash\n```\n'))).toBe(0)
+})
 
 test('splitTips reads tips with category and note', async () => {
   const split = splitTips(

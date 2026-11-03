@@ -99,6 +99,38 @@ test('the check asks Haiku at low effort for up to 600 tokens', async ($, on) =>
   expect(await asked).toEqual({ model: 'haiku', effort: 'low', maxTokens: 600 })
 })
 
+test('a message made only of quoted and fenced text is not checked, and Haiku gets the rest without them', async ($, on) => {
+  const asked: string[] = []
+  const stored: unknown[] = []
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: 1000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: PROGRESS }))
+  on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('store.get', () => ({ value: undefined }))
+  on('model.complete', ($, e) => {
+    asked.push(String(e.prompt))
+    return { value: { isAnswered: true, text: TIPS, usage: USAGE } }
+  })
+  const saved = new Promise(resolve =>
+    on('store.set', ($, e) => {
+      stored.push(e)
+      resolve(e)
+      return { value: undefined }
+    }),
+  )
+
+  await $.prompt.submit({ text: '> i have buy your product\n```\nfix: the bug who make crash\n```', wait: true, origin: { kind: 'composer' } })
+  await $.prompt.submit({ text: 'Look at this:\n> they has a problem\n\n\n\ni am doing effort', wait: true, origin: { kind: 'composer' } })
+  await saved
+  expect(asked).toHaveLength(1)
+  expect(asked[0]).toContain('<message>\nLook at this:\n\ni am doing effort\n</message>')
+  expect(stored).toEqual([{ key: 'session:a', value: [{ turnId: '1000', ts: 1000, words: 7, level: 2, tips: [{ wrong: 'doing effort', fix: 'making an effort', note: '', category: 'calque' }] }] }])
+})
+
 test('a failed check is logged and stores no turn', async ($, on) => {
   const stored: unknown[] = []
   on('session.id', () => ({ value: 'a' }))
