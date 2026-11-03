@@ -9,6 +9,12 @@ const TIPS = 'English tips:\n- "doing effort" → "making an effort" [calque]'
 
 const PROGRESS = '# English progress\n\n## Current tip level: 2 (Natural phrasing)\n'
 
+const firstOutcome = () => {
+  let settle: (outcome: object) => void = () => undefined
+  const first = new Promise<object>(resolve => (settle = resolve))
+  return { first, settle }
+}
+
 test('a missing progress file is created from the template', async ($, on) => {
   const written: string[] = []
   on('session.id', () => ({ value: 'a' }))
@@ -41,17 +47,22 @@ test('a checked message is stored as a turn with the coach tips', async ($, on) 
   on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
   on('model.complete', () => ({ value: { isAnswered: true, text: TIPS, usage: USAGE } }))
   on('store.get', () => ({ value: undefined }))
-  const saved = new Promise(resolve =>
-    on('store.set', ($, e) => {
-      resolve(e)
-      return { value: undefined }
-    }),
-  )
+  const { first, settle } = firstOutcome()
+  on('store.set', ($, e) => {
+    settle({ saved: e })
+    return { value: undefined }
+  })
+  on('ui.log', ($, e) => {
+    settle({ logged: e.text })
+    return { value: undefined }
+  })
 
   await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
-  expect(await saved).toEqual({
-    key: 'session:a',
-    value: [{ turnId: '1000', ts: 1000, words: 4, level: 2, tips: [{ wrong: 'doing effort', fix: 'making an effort', note: '', category: 'calque' }] }],
+  expect(await first).toEqual({
+    saved: {
+      key: 'session:a',
+      value: [{ turnId: '1000', ts: 1000, words: 4, level: 2, tips: [{ wrong: 'doing effort', fix: 'making an effort', note: '', category: 'calque' }] }],
+    },
   })
 })
 
@@ -89,19 +100,19 @@ test('a failed check is logged and stores no turn', async ($, on) => {
   on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
   on('store.get', () => ({ value: undefined }))
   on('model.complete', () => ({ value: { isAnswered: false, reason: 'api-error', status: 529, error: 'overloaded', usage: USAGE } }))
+  const { first, settle } = firstOutcome()
   on('store.set', ($, e) => {
     stored.push(e)
+    settle({ saved: e })
     return { value: undefined }
   })
-  const logged = new Promise(resolve =>
-    on('ui.log', ($, e) => {
-      resolve(e.text)
-      return { value: undefined }
-    }),
-  )
+  on('ui.log', ($, e) => {
+    settle({ logged: e.text })
+    return { value: undefined }
+  })
 
   await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
-  expect(String(await logged)).toContain('the check failed (api-error 529 overloaded)')
+  expect(await first).toEqual({ logged: expect.stringContaining('the check failed (api-error 529 overloaded)') })
   expect(stored).toEqual([])
 })
 
@@ -116,42 +127,18 @@ test('a reply without a tips list is logged with its start', async ($, on) => {
   on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
   on('store.get', () => ({ value: undefined }))
   on('model.complete', () => ({ value: { isAnswered: true, text: 'Sure, here is my answer.', usage: USAGE } }))
-  const logged = new Promise(resolve =>
-    on('ui.log', ($, e) => {
-      resolve(e.text)
-      return { value: undefined }
-    }),
-  )
+  const { first, settle } = firstOutcome()
+  on('store.set', ($, e) => {
+    settle({ saved: e })
+    return { value: undefined }
+  })
+  on('ui.log', ($, e) => {
+    settle({ logged: e.text })
+    return { value: undefined }
+  })
 
   await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
-  expect(String(await logged)).toContain('no tips list in the reply: "Sure, here is my answer."')
-})
-
-test('the review writes the file Sonnet returns without the progress tags it was given', async ($, on) => {
-  const turns = Array.from({ length: 10 }, (_, i) => ({ turnId: String(i), ts: i + 1, words: 5, level: 2, tips: [] }))
-  const written: string[] = []
-  on('session.id', () => ({ value: 'me' }))
-  on('env.get', () => ({ value: '/home/t' }))
-  on('clock.now', () => ({ value: 1000 }))
-  on('clock.after', () => ({ value: undefined }))
-  on('command.register', () => ({ value: { command: 'english' } }))
-  on('store.keys', () => ({ value: ['session:a'] }))
-  on('store.get', (_$, e) => ({ value: e.key === 'session:a' ? turns : undefined }))
-  on('store.set', () => ({ value: undefined }))
-  on('fs.read', () => ({ value: PROGRESS }))
-  on('model.complete', () => ({ value: { isAnswered: true, text: `<progress>\n${PROGRESS}\n</progress>`, usage: USAGE } }))
-  const write = new Promise(resolve =>
-    on('fs.write', (_$, e) => {
-      written.push(e.text)
-      resolve(e)
-      return { value: undefined }
-    }),
-  )
-  on('session.start', (_$, e) => ({ cwd: e.cwd }))
-
-  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: true })
-  await write
-  expect(written).toEqual([PROGRESS])
+  expect(await first).toEqual({ logged: expect.stringContaining('no tips list in the reply: "Sure, here is my answer."') })
 })
 
 const reviewRun = async (
@@ -164,8 +151,7 @@ const reviewRun = async (
   const writes: string[] = []
   const sets: unknown[] = []
   const asks: { prompt: string; maxTokens?: number }[] = []
-  let stored: (value: unknown) => void = () => undefined
-  const saved = new Promise(resolve => (stored = resolve))
+  const { first, settle } = firstOutcome()
   on('session.id', () => ({ value: 'me' }))
   on('session.cwd', () => ({ value: '/w' }))
   on('env.get', () => ({ value: '/home/t' }))
@@ -176,7 +162,7 @@ const reviewRun = async (
   on('store.get', (_$, e) => ({ value: e.key === 'session:a' ? turns : undefined }))
   on('store.set', (_$, e) => {
     sets.push(e)
-    stored(e)
+    settle({ saved: e })
     return { value: undefined }
   })
   on('fs.read', (_$, e) => ({ value: e.path === '/w/.git' ? '' : (reads.shift() ?? PROGRESS) }))
@@ -188,16 +174,20 @@ const reviewRun = async (
     asks.push({ prompt: e.prompt, maxTokens: e.maxTokens })
     return { value: typeof reply === 'function' ? reply(e) : reply }
   })
-  const logged = new Promise(resolve =>
-    on('ui.log', (_$, e) => {
-      resolve(e.text)
-      return { value: undefined }
-    }),
-  )
+  on('ui.log', (_$, e) => {
+    settle({ logged: e.text })
+    return { value: undefined }
+  })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: false })
-  return { logged, saved, writes, sets, asks }
+  return { first, writes, sets, asks }
 }
+
+test('the review writes the file Sonnet returns without the progress tags it was given', async ($, on) => {
+  const run = await reviewRun($, on, { isAnswered: true, text: `<progress>\n${PROGRESS}\n</progress>`, usage: USAGE })
+  expect(await run.first).toEqual({ saved: { key: 'review:at', value: 10 } })
+  expect(run.writes).toEqual([PROGRESS])
+})
 
 test('a review that hits the token cap is logged and writes nothing', async ($, on) => {
   const run = await reviewRun($, on, ask => ({
@@ -205,7 +195,7 @@ test('a review that hits the token cap is logged and writes nothing', async ($, 
     text: PROGRESS,
     usage: { ...USAGE, output_tokens: 4000 + ask.prompt.length },
   }))
-  expect(String(await run.logged)).toContain('the progress review failed (the reply hit the token cap)')
+  expect(await run.first).toEqual({ logged: expect.stringContaining('the progress review failed (the reply hit the token cap)') })
   expect(run.writes).toEqual([])
   expect(run.asks).toHaveLength(1)
   expect(run.asks[0]?.maxTokens).toBe(4000 + (run.asks[0]?.prompt.length ?? 0))
@@ -217,38 +207,38 @@ test('a review one token under the cap is written', async ($, on) => {
     text: PROGRESS,
     usage: { ...USAGE, output_tokens: 4000 + ask.prompt.length - 1 },
   }))
-  expect(await run.saved).toEqual({ key: 'review:at', value: 10 })
+  expect(await run.first).toEqual({ saved: { key: 'review:at', value: 10 } })
   expect(run.writes).toEqual([PROGRESS])
 })
 
 test('a review of a long file is written past 4,000 output tokens, thinking included', async ($, on) => {
   const long = `${PROGRESS}\n## Log\n\n${'- 2026-10-21: "doing effort" → "making an effort"\n'.repeat(150)}`
   const run = await reviewRun($, on, { isAnswered: true, text: long, usage: { ...USAGE, output_tokens: 4561 } }, [long, long])
-  expect(await run.saved).toEqual({ key: 'review:at', value: 10 })
+  expect(await run.first).toEqual({ saved: { key: 'review:at', value: 10 } })
   expect(run.writes).toEqual([`${long.trim()}\n`])
 })
 
 test('a review that loses a section is logged and writes nothing', async ($, on) => {
   const run = await reviewRun($, on, { isAnswered: true, text: '# English progress\n\nNothing here.', usage: USAGE })
-  expect(String(await run.logged)).toContain('the progress review failed (the reply lost a section)')
+  expect(await run.first).toEqual({ logged: expect.stringContaining('the progress review failed (the reply lost a section)') })
   expect(run.writes).toEqual([])
 })
 
 test('a review is dropped when progress.md changed meanwhile', async ($, on) => {
   const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: USAGE }, [PROGRESS, `${PROGRESS}\nedited`])
-  expect(String(await run.logged)).toContain('the progress review was dropped: progress.md changed meanwhile')
+  expect(await run.first).toEqual({ logged: expect.stringContaining('the progress review was dropped: progress.md changed meanwhile') })
   expect(run.writes).toEqual([])
   expect(run.sets).toEqual([])
 })
 
 test('a review that gets no response logs the reason', async ($, on) => {
   const run = await reviewRun($, on, { isAnswered: false, reason: 'api-error', status: null, error: 'unknown', usage: USAGE })
-  expect(String(await run.logged)).toContain('the progress review failed (api-error no response unknown)')
+  expect(await run.first).toEqual({ logged: expect.stringContaining('the progress review failed (api-error no response unknown)') })
 })
 
 test('a written review moves review:at to the newest reviewed turn', async ($, on) => {
   const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: USAGE })
-  expect(await run.saved).toEqual({ key: 'review:at', value: 10 })
+  expect(await run.first).toEqual({ saved: { key: 'review:at', value: 10 } })
   expect(run.writes).toEqual([PROGRESS])
 })
 
