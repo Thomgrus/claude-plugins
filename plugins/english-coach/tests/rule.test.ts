@@ -55,6 +55,28 @@ test('a checked message is stored as a turn with the coach tips', async ($, on) 
   })
 })
 
+test('a reply listing only unchanged sentences is stored as a clean turn', async ($, on) => {
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: 1000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: PROGRESS }))
+  on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('model.complete', () => ({ value: { isAnswered: true, text: 'English tips:\n- "Bump the version." → "Bump the version." [none]', usage: USAGE } }))
+  on('store.get', () => ({ value: undefined }))
+  const saved = new Promise(resolve =>
+    on('store.set', ($, e) => {
+      resolve(e)
+      return { value: undefined }
+    }),
+  )
+
+  await $.prompt.submit({ text: 'Bump the version.', wait: true, origin: { kind: 'composer' } })
+  expect(await saved).toEqual({ key: 'session:a', value: [{ turnId: '1000', ts: 1000, words: 3, level: 2, tips: [] }] })
+})
+
 test('the check asks Haiku at low effort for up to 600 tokens', async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
   on('session.cwd', () => ({ value: '/w' }))

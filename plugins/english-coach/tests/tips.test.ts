@@ -47,3 +47,16 @@ test('splitTips ignores a tips list inside a code fence', async () => {
   expect(splitTips(fenced)).toBeNull()
   expect(splitTips(`${fenced}\nEnglish tips:\n- "c" → "d"`)?.tips).toEqual([{ wrong: 'c', fix: 'd', note: '', category: '' }])
 })
+
+test('splitTips drops a tip whose fix is the same sentence and keeps the others', async () => {
+  const split = splitTips(
+    ['English tips:', '- "Bump the version." → " Bump the version. " [none]', '- "human on the loop" → "human in the loop" [preposition]'].join('\n'),
+  )
+  expect(split?.tips).toEqual([{ wrong: 'human on the loop', fix: 'human in the loop', note: '', category: 'preposition' }])
+})
+
+test('splitTips reads a list of only same-sentence tips like a none line', async () => {
+  const text = ['Done.', '', 'English tips:', '- "It works." → "It works." [none]', '- "Ship it." → "Ship it." [none]', '', 'Bye.'].join('\n')
+  expect(splitTips(text)).toEqual({ body: 'Done.', tips: [], tail: 'Bye.' })
+  expect(splitTips('Done.\n\nEnglish tips: none\n\nBye.')).toEqual({ body: 'Done.', tips: [], tail: 'Bye.' })
+})
