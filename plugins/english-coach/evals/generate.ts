@@ -25,7 +25,7 @@ const SAME_FIX = (name: string) => `${SPACE}*["“]${SPACE}*(?-i:\\k<${name}>)${
 const KEPT = (name: string) =>
   `(?:${SPACE}*(?:[-*]|\\d+\\.)${SPACE}*["“]${SPACE}*(?<${name}>[^\\n]+?)${SPACE}*["”]${SPACE}*${ARROW}${SAME_FIX(name)}[^\\n]*|(?!${line(ITEM)})${line(UNCHANGED)}[^\\n]*)`
 const CLEAN = `${line(NONE)}|${line(HEADER)}(?:\\n(?:${SPACE}*|${OTHER}))*\\n${KEPT('first')}(?:\\n(?:${KEPT('next')}|${OTHER}))*(?![^\\n])(?!\\n${BULLET})`
-const UNCHANGED_FIX = UNCHANGED.source.slice(UNCHANGED.source.indexOf(ARROW) + ARROW.length).replaceAll('[\\s', '[ \\t').replaceAll('\\s', '[ \\t]')
+const UNCHANGED_FIX = UNCHANGED.source.slice(UNCHANGED.source.indexOf(ARROW) + ARROW.length, UNCHANGED.source.indexOf(')\\b') + 3).replaceAll('[\\s', '[ \\t').replaceAll('\\s', '[ \\t]')
 const ANY_BEFORE = '(?:[^"”\\s][^"”\\n]*)?'
 const ANY_AFTER = '(?:[^"”\\n]*[^"”\\s])?'
 const BEFORE = '(?:[^"”\\s]+[ \\t]+){0,4}[^"”\\s]*'
