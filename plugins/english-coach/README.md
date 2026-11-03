@@ -45,3 +45,20 @@ npm run build
 ```
 
 `npm run types` lays down the engine types in `.claude-plugin/types/`. To try an edit in Claude Code Desktop, see [docs/solutions](docs/solutions/2026-10-07-desktop-runs-stale-plugin-code.md).
+
+### Evals
+
+The eval cases in `evals/cases/` are generated from `evals/dataset.json` and the production prompt and patterns. Regenerate them after changing either, and commit them:
+
+```bash
+npm run evals:generate
+```
+
+Run them with Haiku in a throwaway `HOME`, so the run never reads or writes your own coach data. On macOS, link `Library` so the CLI finds its login:
+
+```bash
+mkdir -p /tmp/eval-home && ln -sfn ~/Library /tmp/eval-home/Library
+HOME=/tmp/eval-home claude plugin eval . --ablation none --runs 3 --trust-plugin --no-publish
+```
+
+Why the cases look the way they do, and what they miss: [docs/decisions](docs/decisions/2026-11-02-haiku-check-eval-cases-generated-from-a-dataset.md).
