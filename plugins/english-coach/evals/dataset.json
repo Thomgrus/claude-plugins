@@ -1,0 +1,215 @@
+[
+  {
+    "id": "depends-of",
+    "message": "Can you check why the build fails? It depends of the node version I think, on my machine it works with node 20.",
+    "mistakes": [{ "category": "preposition", "wrong": "depends of", "fix": "depends on", "match": "depends of" }]
+  },
+  {
+    "id": "explain-me",
+    "message": "Explain me how the cache invalidation works in this service, I don't understand why we call it two times.",
+    "mistakes": [{ "category": "preposition", "wrong": "Explain me", "fix": "Explain to me", "match": "explain me" }]
+  },
+  {
+    "id": "blocked-since",
+    "message": "The staging deploy is blocked since this morning. Actually we use the old pipeline, so maybe the problem comes from there.",
+    "mistakes": [
+      { "category": "verb-form", "wrong": "is blocked since", "fix": "has been blocked since", "match": "is blocked since" },
+      { "category": "word-choice", "wrong": "Actually we use", "fix": "We currently use", "match": "actually" }
+    ]
+  },
+  {
+    "id": "do-the-modifications",
+    "message": "I made a review of the PR this morning, can you take into account my remarks and do the modifications?",
+    "mistakes": [{ "category": "calque", "wrong": "do the modifications", "fix": "make the changes", "match": "do the modifications" }]
+  },
+  {
+    "id": "since-two-weeks",
+    "message": "I work on this feature since two weeks and I still don't understand the auth flow.",
+    "mistakes": [{ "category": "verb-form", "wrong": "I work on this feature since two weeks", "fix": "I've been working on this feature for two weeks", "match": "since two weeks|work on this feature since" }]
+  },
+  {
+    "id": "split-him",
+    "message": "The function is too long, can you split him in two smaller functions? He does the parsing and the validation.",
+    "mistakes": [
+      { "category": "pronoun", "wrong": "split him", "fix": "split it", "match": "split him" },
+      { "category": "pronoun", "wrong": "He does the parsing", "fix": "It does the parsing", "match": "\\bhe does" }
+    ]
+  },
+  {
+    "id": "where-is-the-config",
+    "message": "I don't know where is the config file for eslint, and I use always the default one.",
+    "mistakes": [
+      { "category": "word-order", "wrong": "where is the config file", "fix": "where the config file is", "match": "where is the config" },
+      { "category": "word-order", "wrong": "I use always", "fix": "I always use", "match": "use always" }
+    ]
+  },
+  {
+    "id": "lowercase-i",
+    "message": "yesterday i tried to upgrade to react 19 but i had a lot of errors with the types.",
+    "mistakes": [{ "category": "capitalization", "wrong": "i tried", "fix": "I tried", "match": "\\bi\\b" }]
+  },
+  {
+    "id": "win-time",
+    "message": "I have a doubt about this approach, isn't it better to use a queue? We could win a lot of time.",
+    "mistakes": [
+      { "category": "calque", "wrong": "I have a doubt", "fix": "I'm not sure", "match": "have a doubt" },
+      { "category": "calque", "wrong": "win a lot of time", "fix": "save a lot of time", "match": "win a lot of time" }
+    ]
+  },
+  {
+    "id": "assisted-to",
+    "message": "I assisted to the architecture meeting and they decided to pass on Postgres for the new service.",
+    "mistakes": [
+      { "category": "calque", "wrong": "assisted to", "fix": "attended", "match": "assisted to" },
+      { "category": "calque", "wrong": "pass on Postgres", "fix": "switch to Postgres", "match": "pass on" }
+    ]
+  },
+  {
+    "id": "had-incident",
+    "message": "Can you add the logging to all the services? The observability is important for us, we had incident last week and nobody saw it.",
+    "mistakes": [{ "category": "article", "wrong": "we had incident", "fix": "we had an incident", "match": "had incident" }]
+  },
+  {
+    "id": "did-you-saw",
+    "message": "Did you saw the error in the logs? It make the whole page crash when the user is not logged.",
+    "mistakes": [
+      { "category": "verb-form", "wrong": "Did you saw", "fix": "Did you see", "match": "did you saw" },
+      { "category": "verb-form", "wrong": "It make", "fix": "It makes", "match": "\\bit make\\b" },
+      { "category": "other", "wrong": "is not logged", "fix": "is not logged in", "match": "not logged(?! in)" }
+    ]
+  },
+  {
+    "id": "precise",
+    "message": "Can you precise what you mean by 'stale'? I am not sure to understand.",
+    "mistakes": [
+      { "category": "word-choice", "wrong": "precise what you mean", "fix": "clarify what you mean", "match": "precise" },
+      { "category": "calque", "wrong": "I am not sure to understand", "fix": "I'm not sure I understand", "match": "sure to understand" }
+    ]
+  },
+  {
+    "id": "propose-you",
+    "message": "I propose you to refactor the parser first, after we can add the new syntax.",
+    "mistakes": [
+      { "category": "verb-form", "wrong": "I propose you to refactor", "fix": "I suggest you refactor", "match": "propose you to" },
+      { "category": "word-choice", "wrong": "after we can", "fix": "then we can", "match": "after we can" }
+    ]
+  },
+  {
+    "id": "french-sentence",
+    "message": "Can you add a test for the edge case? Je pense que ça casse quand la liste est vide.",
+    "mistakes": [{ "category": "other", "wrong": "Je pense que ça casse quand la liste est vide", "fix": "I think it breaks when the list is empty", "match": "je pense que ça casse|ça casse quand la liste|liste est vide" }]
+  },
+  {
+    "id": "informations",
+    "message": "Where can I find more informations about the rate limits? The documentation is not clear on this point.",
+    "mistakes": [{ "category": "other", "wrong": "more informations", "fix": "more information", "match": "informations" }]
+  },
+  {
+    "id": "say-me",
+    "message": "Is it possible for you to look at the PR #42 and to say me if it's ok to merge?",
+    "mistakes": [{ "category": "word-choice", "wrong": "say me", "fix": "tell me", "match": "say me" }]
+  },
+  {
+    "id": "dont-work",
+    "message": "We migrated to Vite last month but since the hot reload don't work anymore on my laptop.",
+    "mistakes": [{ "category": "verb-form", "wrong": "the hot reload don't work", "fix": "hot reload doesn't work", "match": "don't work|dont work" }]
+  },
+  {
+    "id": "control-migrations",
+    "message": "Before merging, can you control that all the migrations are reversible?",
+    "mistakes": [{ "category": "calque", "wrong": "control that", "fix": "check that", "match": "control" }]
+  },
+  {
+    "id": "export-take",
+    "message": "The users are complaining because the export take too much time, it's very long for big files.",
+    "mistakes": [{ "category": "verb-form", "wrong": "the export take", "fix": "the export takes", "match": "export take\\b" }]
+  },
+  {
+    "id": "rename-in",
+    "message": "Rename the variable `data` in `payload`, and the same for the type, he must be coherent.",
+    "mistakes": [
+      { "category": "preposition", "wrong": "`data` in `payload`", "fix": "`data` to `payload`", "match": "\\bin `?payload" },
+      { "category": "pronoun", "wrong": "he must be coherent", "fix": "it must be consistent", "match": "\\bhe must" }
+    ]
+  },
+  {
+    "id": "at-monday",
+    "message": "I will push the fix this evening, the release is planned at Monday.",
+    "mistakes": [{ "category": "preposition", "wrong": "planned at Monday", "fix": "planned for Monday", "match": "at monday" }]
+  },
+  {
+    "id": "pasted-french-error",
+    "message": "I have this error when I launch the tests:\n\n```\nErreur : impossible de trouver le module 'utils/date'\n    at Object.<anonymous> (src/utils/date.test.ts:3:1)\n```\n\nI don't understand, the file exist.",
+    "mistakes": [
+      { "category": "calque", "wrong": "launch the tests", "fix": "run the tests", "match": "launch the tests" },
+      { "category": "verb-form", "wrong": "the file exist", "fix": "the file exists", "match": "file exist(?!s)" }
+    ],
+    "traps": ["impossible de trouver|erreur"]
+  },
+  {
+    "id": "clean-retry",
+    "message": "Can you add a retry with exponential backoff to the HTTP client? Three attempts should be enough."
+  },
+  {
+    "id": "clean-safari",
+    "message": "The login page breaks on Safari when the session cookie expires. Could you look into it and suggest a fix?"
+  },
+  {
+    "id": "clean-rename",
+    "message": "Please rename `getUserData` to `fetchUser` everywhere and update the tests accordingly."
+  },
+  {
+    "id": "clean-migration",
+    "message": "I've been working on this migration for two days and I'm still not sure the rollback works. Can you review it?"
+  },
+  {
+    "id": "clean-linter",
+    "message": "Run the linter and fix whatever it reports, but don't touch the generated files in `src/gen/`."
+  },
+  {
+    "id": "clean-hooks",
+    "message": "What's the difference between `useMemo` and `useCallback` here? I always mix them up."
+  },
+  {
+    "id": "clean-move-validation",
+    "message": "Thanks, that works. Now let's move the validation into its own module so we can reuse it in the CLI."
+  },
+  {
+    "id": "clean-node-bump",
+    "message": "Is it safe to bump the Node version to 22 in CI, or do we depend on something that breaks?"
+  },
+  {
+    "id": "clean-stack-trace",
+    "message": "I'm not sure I understand the error. Could you explain what the stack trace means step by step?"
+  },
+  {
+    "id": "trap-code-comment",
+    "message": "Why does this throw?\n\n```ts\n// we check if the user have rights\nif (user.role = 'admin') {\n  return true\n}\n```\n\nI expected it to return false for regular users.",
+    "traps": ["user have rights|have rights"]
+  },
+  {
+    "id": "trap-customer-quote",
+    "message": "A customer sent us this, can you draft a polite reply?\n\n> Hello, i have buy your product since three month and the export dont work, please help me quickly.\n\nKeep it short.",
+    "traps": ["have buy|three month|dont work"]
+  },
+  {
+    "id": "trap-command-path",
+    "message": "Run `npm run test:e2e -- --grep \"login flow\"` and tell me which specs fail. The config lives in `e2e/playwright.config.ts`.",
+    "traps": ["test:e2e|playwright"]
+  },
+  {
+    "id": "trap-french-identifier",
+    "message": "The function `calculerMontantTotal` returns the wrong total when a discount applies. Can you find out why?",
+    "traps": ["calculer"]
+  },
+  {
+    "id": "trap-git-log",
+    "message": "Can you squash these commits into one with a clean message?\n\n```\nfix: correct the bug who make crash\nwip\nadd test for the case where list is empty\n```",
+    "traps": ["who make crash|where list is empty"]
+  },
+  {
+    "id": "trap-french-ticket",
+    "message": "Here is the ticket description, please implement it:\n\n\"Ajouter un bouton pour exporter les factures en CSV depuis la page de facturation.\"\n\nUse the existing export service.",
+    "traps": ["ajouter|factures|facturation"]
+  }
+]
