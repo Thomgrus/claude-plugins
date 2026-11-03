@@ -197,7 +197,8 @@ type Pane = { ui: ReturnType<EngineInterface['ui']['resolve']>; all: Turn[]; min
 const plural = (n: number, word: string) => `${n.toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`
 
 function strip({ ui: { Box, Text }, all, mine, months, total }: Pane, status: (string | false)[]) {
-  const level = all.at(-1)?.level ?? Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).at(-1)?.[1].level ?? 0
+  const rolled = all.length === 0 ? Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).at(-1) : undefined
+  const level = all.at(-1)?.level ?? rolled?.[1].level ?? 0
   const session = totalsOf(mine)
   const note = (title: string, text: string) => (
     <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
@@ -213,7 +214,7 @@ function strip({ ui: { Box, Text }, all, mine, months, total }: Pane, status: (s
         {level > 0 ? (
           <Box flexDirection="row" gap={1}>
             <Text bold>{`Level ${level}`}</Text>
-            <Text dimColor>{LEVELS[level] ?? ''}</Text>
+            <Text dimColor>{rolled === undefined ? (LEVELS[level] ?? '') : `highest in ${monthLabel(rolled[0])}`}</Text>
           </Box>
         ) : (
           <Text dimColor>No turns yet</Text>
