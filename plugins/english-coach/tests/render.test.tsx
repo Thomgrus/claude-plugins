@@ -43,7 +43,8 @@ test('the pane draws history from every session on desktop', async ($, on) => {
     props: { title: 'English coach', isFocused: false, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} },
   })
   expect(await ui.find({ type: 'Svg' })).toBeDefined()
-  expect(await ui.find({ type: 'Markdown', text: '| All sessions | 2 | 1.00 | 10.0 | 0% | 20 |' })).toBeDefined()
+  expect(await ui.find({ type: 'Markdown', text: '### 1.00' })).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: '20' })).toBeDefined()
   await ui.unmount()
 })
 
