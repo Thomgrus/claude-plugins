@@ -22,11 +22,11 @@ It was benchmarked on 68 real tips taken from 46 Haiku calls, nearly all of them
 
 Also not chosen:
 
-- a stricter `COACH` rule asking for a fix with no mistake left in it: the fix graders scored 101 of 102 with it and 102 of 102 without, no measurable effect;
-- dropping a tip whose fix still holds the quoted words: right fixes often do, such as `"not logged" → "not logged in"`.
+- a stricter `COACH` rule asking for a fix with no mistake left in it: an earlier version of the fix graders scored 101 of 102 with it and 102 of 102 without, no measurable effect;
+- dropping a tip whose fix still holds the quoted words: a right fix can, such as `"not logged" → "not logged in"`.
 
 ## Consequences
 
 - At its best setting the second call drops about 7% of right tips to catch wrong fixes that are at most 3% of tips, and it adds a model call to every checked message.
-- Wrong fixes are caught in the evals instead, by the `fix` graders of [the eval cases](2026-11-02-haiku-check-eval-cases-generated-from-a-dataset.md).
+- A fix that keeps the mistake is caught in the evals instead, by the `fix` graders of [the eval cases](2026-11-02-haiku-check-eval-cases-generated-from-a-dataset.md). A fix that makes a different mistake is caught neither there nor in the plugin.
 - Reopen this if the wrong-fix rate in the evals rises, or if a check drops well under 1% of right tips.
