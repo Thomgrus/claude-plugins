@@ -9,7 +9,7 @@ const BULLET = /^\s*(?:[-*]|\d+\.)\s/
 const FENCE = /^\s*(?:```|~~~)/
 const OPEN = /^\s*(`{3,}(?=[^`]*$)|~{3,})/
 const CLOSE = /^\s*(`{3,}|~{3,})\s*$/
-const PASTE = /^\s*<\/?pasted_content(?:\s[^>]*)?>\s*$/
+const PASTE = /^\s*<(\/?)pasted_content(?:\s[^>]*)?>\s*$/
 
 const outsideFence = (lines: string[], index: number) => lines.slice(0, index).filter(line => FENCE.test(line)).length % 2 === 0
 
@@ -55,8 +55,15 @@ export const splitTips = (text: string) => {
 export const stripPasted = (text: string) => {
   const kept: string[] = []
   let fence = ''
+  let pasting = false
   for (const line of text.split(/\r?\n/)) {
-    if (PASTE.test(line)) {
+    const tag = PASTE.exec(line)
+    if (tag && fence === '') {
+      pasting = tag[1] === ''
+      continue
+    }
+    if (tag && pasting && tag[1] === '/') {
+      pasting = false
       fence = ''
       continue
     }
