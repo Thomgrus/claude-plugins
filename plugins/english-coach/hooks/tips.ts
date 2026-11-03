@@ -71,7 +71,7 @@ export const countWords = (text: string) =>
     .replace(/`[^`]*`/g, ' ')
     .replace(/https?:\/\/\S+/g, ' ')
     .split(/\s+/)
-    .filter(word => /[a-z]/i.test(word)).length
+    .filter(word => /\p{L}/u.test(word)).length
 
 const CHEERS = ['Nice work!', 'Well written!', 'Spot on!', 'Keep it up!', 'Clean and clear!', 'Great English!']
 
