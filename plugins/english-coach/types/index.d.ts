@@ -7,7 +7,7 @@ declare module 'claude-code' {
   interface PluginState {
     'english-coach': {
       revision: number
-      check: { id: number; tips: Tip[] | null } | null
+      check: { id: number; tips: Tip[] | null; hiddenOn?: string[] } | null
     }
   }
 }

@@ -233,12 +233,14 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, check)
-    if (current === null || e.props.hasSurvey) return next(e)
+    if (current === null || e.props.hasSurvey || current.hiddenOn?.includes(e.surface)) return next(e)
     const ui = $.ui.resolve(e)
     const { Box, Text } = ui
     const theirs = await next(e)
     const hide = () =>
-      update($, check, latest => (latest?.id === current.id ? null : latest)).catch(error => $.ui.log(`the tips were not hidden: ${String(error)}`))
+      update($, check, latest => (latest?.id === current.id ? { ...latest, hiddenOn: [...(latest.hiddenOn ?? []), e.surface] } : latest)).catch(error =>
+        $.ui.log(`the tips were not hidden: ${String(error)}`),
+      )
     return (
       <Box flexDirection="column">
         {theirs}
