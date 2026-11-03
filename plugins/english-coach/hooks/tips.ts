@@ -4,7 +4,7 @@ export const HEADER = /^\s*(?:#+\s*)?(?:\*\*)?English tips:?(?:\*\*)?:?\s*$/i
 export const NONE = /^\s*(?:#+\s*)?[`*]*English tips:?[`*]*:?\s*[`*(]*none\b[).`*]*(?:\s*$|\s+[—–-])/i
 const QUOTED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](.+?)["”](?=\s*(?:\[|$|[—–(-]))\s*(.*)$/
 export const ITEM = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](.+?)["”]\s*(.*)$/
-const UNCHANGED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)[\s([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\b/i
+export const UNCHANGED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)[\s([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\b/i
 const BULLET = /^\s*(?:[-*]|\d+\.)\s/
 const FENCE = /^\s*(?:```|~~~)/
 
