@@ -9,7 +9,7 @@ const BULLET = /^\s*(?:[-*]|\d+\.)\s/
 const FENCE = /^\s*(?:```|~~~)/
 const OPEN = /^\s*(`{3,}(?=[^`]*$)|~{3,})/
 const CLOSE = /^\s*(`{3,}|~{3,})\s*$/
-const PASTE = /^\s*<(\/?)pasted_content(?:\s[^>]*)?>\s*$/
+const PASTE = /^\s*<(\/?)pasted_content(?:\s([^>]*))?>\s*$/
 
 const outsideFence = (lines: string[], index: number) => lines.slice(0, index).filter(line => FENCE.test(line)).length % 2 === 0
 
@@ -53,26 +53,20 @@ export const splitTips = (text: string) => {
 }
 
 export const stripPasted = (text: string) => {
-  const lines = text.split(/\r?\n/)
-  const tags = lines.map(line => PASTE.exec(line))
   const kept: string[] = []
+  const pastes = new Map<string, { fence: string; size: number }>()
   let fence = ''
-  let outer = ''
-  let end = -1
-  for (const [i, line] of lines.entries()) {
-    if (i === end) {
-      fence = outer
-      end = -1
+  for (const line of text.split(/\r?\n/)) {
+    const tag = PASTE.exec(line)
+    const id = tag?.[2]?.trim() ?? ''
+    const paste = tag?.[1] === '/' ? pastes.get(id) : undefined
+    if (tag?.[1] === '') pastes.set(id, { fence, size: kept.length })
+    if (paste) {
+      pastes.delete(id)
+      if (paste.fence !== '' && fence === '') kept.length = paste.size
+      fence = paste.fence
       continue
     }
-    const tag = tags[i]
-    const close = tag && end < 0 && tag[1] === '' ? tags.findIndex((next, j) => j > i && next) : -1
-    if (close > i && tags[close]?.[1] === '/') {
-      end = close
-      outer = fence
-      continue
-    }
-    if (end >= 0 && outer !== '') continue
     if (fence !== '') {
       const shut = CLOSE.exec(line)?.[1] ?? ''
       if (shut[0] === fence[0] && shut.length >= fence.length) fence = ''
