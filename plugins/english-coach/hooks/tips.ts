@@ -4,6 +4,7 @@ const HEADER = /^\s*(?:#+\s*)?(?:\*\*)?English tips:?(?:\*\*)?:?\s*$/i
 const NONE = /^\s*(?:#+\s*)?[`*]*English tips:?[`*]*:?\s*[`*(]*none\b[).`*]*(?:\s*$|\s+[—–-])/i
 const QUOTED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](.+?)["”](?=\s*(?:\[|$|[—–(-]))\s*(.*)$/
 const ITEM = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](.+?)["”]\s*(.*)$/
+const UNCHANGED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)[\s([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\b/i
 const BULLET = /^\s*(?:[-*]|\d+\.)\s/
 const FENCE = /^\s*(?:```|~~~)/
 
@@ -33,7 +34,9 @@ export const splitTips = (text: string) => {
   let end = start + 1
   for (const line of lines.slice(start + 1)) {
     const match = QUOTED.exec(line) ?? ITEM.exec(line)
+    const unchanged = match ? null : UNCHANGED.exec(line)
     if (match) tips.push(toTip(match))
+    else if (unchanged) tips.push({ wrong: unchanged[1] ?? '', fix: unchanged[1] ?? '', note: '', category: '' })
     else if (!BULLET.test(line) && (line.trim() !== '' || tips.length > 0)) break
     end++
   }
