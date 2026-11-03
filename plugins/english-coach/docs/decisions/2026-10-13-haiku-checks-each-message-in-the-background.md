@@ -44,3 +44,18 @@ A fence opens at any indent so that a fence inside a list item is removed. The c
 `splitTips` drops a tip whose fix repeats the quoted text, and reads a bullet whose fix starts with a no-change word (`none`, `no mistake`, `no big mistake`, `no tip`, `no change`, `fine`, `correct`, `ok`) and quotes nothing after it as no tip. Haiku writes both shapes for sentences it found correct.
 
 `COACH` keeps its rule on quoted and pasted text: inline quotes, inline code and indented code still reach Haiku.
+
+## Amended 2026-11-03: Hide dismisses the band per surface kind
+
+In the desktop app the band could not be hidden until the next message. The terminal has its own way to hide it; the desktop app had none.
+
+The atom `check` now holds `{ id, tips, hiddenOn? }`. Outside the terminal (`e.surface !== 'terminal'`, the same rule as the pane's close button), the band's card carries a **Hide** button with `role="dismiss"` on its first line. A press adds `e.surface` to `hiddenOn`, and the `AbovePrompt` hook yields to `next(e)` on any surface listed there. The update acts only when `check.id` still matches the card that was drawn, so a click on an old card never hides newer tips, and it adds a surface at most once. The next message writes a new `{ id, tips: null }`, which drops `hiddenOn`: Hide is a dismiss of the card on screen, not a pause. The card under an assistant reply gets no button.
+
+The key is the surface kind because `ui.render` events carry `e.surface` but no client id; only `session.attach` and `session.detach` name a client.
+
+Not chosen: setting `check` to `null` on Hide (it also hid the band on a terminal attached to the same session); a per-window dismiss (no client id at render time).
+
+Consequences:
+
+- Two clients of the same surface kind on one session share the dismiss: Hide in one desktop window hides the band in the other.
+- A terminal attached to the same session keeps its band when a desktop client hides it.

@@ -1,8 +1,36 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Register, RenderNode, Timer } from 'claude-code'
 
-import type { Monthly, Tip, Turn } from '../types'
-import { add, barChart, byDay, byMonth, day, merge, monthly, rawFrom, recent, row, table, totalsRow, ZERO } from './kpi'
+import type { Monthly, Tip, Totals, Turn, View } from '../types'
+import {
+  add,
+  barChart,
+  byDay,
+  byMonth,
+  categories,
+  day,
+  dayCount,
+  dayLabel,
+  dayRows,
+  levelChange,
+  merge,
+  month,
+  monthLabel,
+  monthly,
+  monthRows,
+  nextDay,
+  rates,
+  rateTable,
+  rawFrom,
+  recent,
+  repeats,
+  row,
+  table,
+  totalsOf,
+  totalsRow,
+  when,
+  ZERO,
+} from './kpi'
 import { ask, COACH, keepsSections, levelOf, PROGRESS_PATH, REVIEW, REVIEW_AFTER, reviewAsk, TEMPLATE, unwrap } from './rule'
 import { cheer, countWords, splitTips, stripPasted } from './tips'
 
@@ -15,12 +43,23 @@ const NATIVE_HINT = '_Set `english-coach.nativeLanguage` in `/config`: the coach
 const WORKTREE = /^gitdir:\s*(.+)\/\.git\/worktrees\/[^/]+\s*$/m
 const PAUSED_STATUS = 'English coach paused in this project · /english resume'
 const PAUSED_HINT = '**Paused in this project.** Your messages here are not checked or counted. Run `/english resume` to start again.'
+const PAUSED_NOTE = 'Your messages here are not checked or counted. Run /english resume to start again.'
+const NATIVE_NOTE = 'Set english-coach.nativeLanguage in /config: the coach then looks for the calques and false friends your native language brings.'
+const ROLLED_NOTE = 'No recent turns: older months keep totals only, see History.'
+const LEVELS = ['', 'Basics', 'Natural phrasing', 'Nuance']
+const VIEWS = [
+  ['overview', 'Overview', 'o'],
+  ['tips', 'Tips', 't'],
+  ['history', 'History', 'h'],
+] as const
 const USAGE = 'Usage: `/english` opens the pane, `/english pause` stops the checks in this project, `/english resume` starts them again.'
 
 const revision = atom({ plugin: 'english-coach', key: 'revision' } as const, 0)
 const check = atom({ plugin: 'english-coach', key: 'check' } as const, null)
+const view = atom({ plugin: 'english-coach', key: 'view' } as const, 'overview' as View)
 
 let saving: Promise<unknown> = Promise.resolve()
+let midnight: Timer | undefined
 
 async function progressPath($: Pick<EngineInterface, 'env'>) {
   const home = (await $.env.get('HOME')) || (await $.env.get('USERPROFILE'))
@@ -120,15 +159,26 @@ async function rollUp($: Pick<EngineInterface, 'store' | 'clock' | 'session'>) {
   }
 }
 
-function card({ Box, Text }: ReturnType<EngineInterface['ui']['resolve']>, tips: Tip[], text: string) {
+function card({ Box, Button, Text }: ReturnType<EngineInterface['ui']['resolve']>, tips: Tip[], text: string, onHide?: () => void) {
+  const hide = onHide && (
+    <Button role="dismiss" onPress={onHide}>
+      Hide
+    </Button>
+  )
   return tips.length === 0 ? (
-    <Box flexDirection="row" gap={1} borderStyle="round" paddingX={1} marginTop={1}>
-      <Text color="green" bold>✓ No English findings</Text>
-      <Text dimColor>{cheer(text)}</Text>
+    <Box flexDirection="row" justifyContent="space-between" alignItems="center" borderStyle="round" paddingX={1} marginTop={1}>
+      <Box flexDirection="row" gap={1}>
+        <Text color="green" bold>✓ No English findings</Text>
+        <Text dimColor>{cheer(text)}</Text>
+      </Box>
+      {hide}
     </Box>
   ) : (
     <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-      <Text bold>English tips · {tips.length}</Text>
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+        <Text bold>English tips · {tips.length}</Text>
+        {hide}
+      </Box>
       {tips.map(tip => (
         <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
           <Text color="red" strikethrough>{tip.wrong}</Text>
@@ -138,6 +188,230 @@ function card({ Box, Text }: ReturnType<EngineInterface['ui']['resolve']>, tips:
           {tip.note !== '' && <Text dimColor italic>{tip.note}</Text>}
         </Box>
       ))}
+    </Box>
+  )
+}
+
+type Pane = { ui: ReturnType<EngineInterface['ui']['resolve']>; all: Turn[]; mine: Turn[]; months: Monthly; now: number; total: Totals }
+
+const plural = (n: number, word: string) => `${n.toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`
+
+function strip({ ui: { Box, Text }, all, mine, months, total }: Pane, status: (string | false)[]) {
+  const rolled = all.length === 0 ? Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).at(-1) : undefined
+  const level = all.at(-1)?.level ?? rolled?.[1].level ?? 0
+  const session = totalsOf(mine)
+  const note = (title: string, text: string) => (
+    <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
+      <Text color="warning" bold>
+        {title}
+      </Text>
+      <Text dimColor>{text}</Text>
+    </Box>
+  )
+  return (
+    <Box flexDirection="column">
+      <Box flexDirection="row" flexWrap="wrap" justifyContent="space-between" columnGap={1}>
+        {level > 0 ? (
+          <Box flexDirection="row" gap={1}>
+            <Text bold>{`Level ${level}`}</Text>
+            <Text dimColor>{rolled === undefined ? (LEVELS[level] ?? '') : `${LEVELS[level] ?? ''} · highest in ${monthLabel(rolled[0])}`}</Text>
+          </Box>
+        ) : (
+          <Text dimColor>No turns yet</Text>
+        )}
+        {total.turns > 0 && (
+          <Box flexDirection="row" gap={1}>
+            <Text dimColor>This session</Text>
+            <Text>{`${plural(session.turns, 'turn')}, ${plural(session.findings, 'finding')}`}</Text>
+          </Box>
+        )}
+      </Box>
+      {status.includes('paused') && note('Paused in this project.', PAUSED_NOTE)}
+      {status.includes('native') && note('Native language not set.', NATIVE_NOTE)}
+      {status.includes('checking') && (
+        <Text dimColor italic>
+          Checking your message…
+        </Text>
+      )}
+    </Box>
+  )
+}
+
+function emptyView({ ui: { Box, Text } }: Pane) {
+  return (
+    <Box borderStyle="round" paddingX={1}>
+      <Text>Write your next message in English: the coach checks it and your figures start here.</Text>
+    </Box>
+  )
+}
+
+function overview({ ui, all, mine, total }: Pane) {
+  const { Box, Markdown, Text } = ui
+  const session = totalsOf(mine)
+  const same = session.turns === total.turns
+  const ours = rates(session)
+  const theirs = rates(total)
+  const tile = (label: string, value: string, overall: string) => (
+    <Box flexDirection="column" borderStyle="round" paddingX={1} minWidth={20} flexGrow={1}>
+      <Text dimColor>{label}</Text>
+      <Markdown text={`### ${value}`} />
+      {same ? (
+        <Text dimColor>only session so far</Text>
+      ) : (
+        <Box flexDirection="row" gap={1}>
+          <Text>{overall}</Text>
+          <Text dimColor>all sessions</Text>
+        </Box>
+      )}
+    </Box>
+  )
+  const shown = Math.min(all.length, 30)
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Box flexDirection="row" flexWrap="wrap" gap={1}>
+        {tile('Findings per turn', ours.perTurn, theirs.perTurn)}
+        {tile('Errors per 100 words', ours.per100, theirs.per100)}
+        {tile('Clean turns', ours.clean, theirs.clean)}
+        {tile('Words', session.words.toLocaleString('en-US'), total.words.toLocaleString('en-US'))}
+      </Box>
+      {all.length === 0 && <Text dimColor>{ROLLED_NOTE}</Text>}
+      {all.length > 0 && (
+        <Box flexDirection="column">
+          <Text bold>Last 30 turns</Text>
+          {'Svg' in ui && <ui.Svg source={barChart(all)} alt={`Findings per turn for the last ${shown} turns`} />}
+          <Text dimColor>
+            {shown < 30 ? `${plural(shown, 'turn')} so far: the chart fills up to 30.` : 'One bar per turn, one line per finding. Green dot: clean turn. Dashed line: a new day.'}
+          </Text>
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+function tipsView({ ui: { Box, Text }, all, mine, now }: Pane) {
+  const shown = all.slice(-8).reverse()
+  const latest = [...shown.filter(turn => mine.includes(turn)), ...shown.filter(turn => !mine.includes(turn))]
+  const boundary = latest.findIndex(turn => !mine.includes(turn))
+  const told = new Set<string>()
+  const items: RenderNode[] = []
+  let clean = 0
+  const flush = () => {
+    if (clean > 0) items.push(<Text color="success">{`✓ ${plural(clean, 'clean turn')}`}</Text>)
+    clean = 0
+  }
+  const tipRow = (tip: Tip) => {
+    const key = tip.wrong.toLowerCase()
+    const count = told.has(key) ? 0 : repeats(all, tip.wrong)
+    told.add(key)
+    return (
+      <Box flexDirection="column">
+        <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
+          <Text color="error" strikethrough>
+            {tip.wrong}
+          </Text>
+          <Text dimColor>→</Text>
+          <Text color="success" bold>
+            {tip.fix}
+          </Text>
+          {tip.category !== '' && <Text dimColor>{tip.category}</Text>}
+        </Box>
+        {tip.note !== '' && (
+          <Text dimColor italic>
+            {tip.note}
+          </Text>
+        )}
+        {count >= 3 && <Text color="warning">{`${count} times in the last 30 turns`}</Text>}
+      </Box>
+    )
+  }
+  for (const [i, turn] of latest.entries()) {
+    if (i === boundary) {
+      flush()
+      items.push(<Text dimColor>Other sessions</Text>)
+    }
+    if (turn.tips.length === 0) {
+      clean += 1
+      continue
+    }
+    flush()
+    items.push(
+      <Box flexDirection="column">
+        <Text dimColor>{`${when(turn.ts, now)}, ${plural(turn.words, 'word')}`}</Text>
+        {turn.tips.map(tipRow)}
+      </Box>,
+    )
+  }
+  flush()
+  const counts = categories(all)
+  const top = counts[0]?.[1] ?? 1
+  const first = all[0]
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Box flexDirection="row" gap={1}>
+        <Text bold>Recent tips</Text>
+        <Text dimColor>last 8 turns</Text>
+      </Box>
+      {latest.length === 0 && <Text dimColor>{ROLLED_NOTE}</Text>}
+      {latest.length > 0 && latest.every(turn => turn.tips.length === 0) && <Text dimColor>No tips in the last 8 turns.</Text>}
+      {items}
+      {first !== undefined && counts.length > 0 && (
+        <Box flexDirection="column">
+          <Box flexDirection="row" gap={1}>
+            <Text bold>By category</Text>
+            <Text dimColor>{`since ${dayLabel(day(first.ts))}`}</Text>
+          </Box>
+          {counts.map(([name, n]) => (
+            <Box flexDirection="row" gap={1}>
+              <Box width={15}>
+                <Text>{name}</Text>
+              </Box>
+              <Box flexGrow={1}>
+                <Box width={`${Math.max(1, Math.round((n * 100) / top))}%`} height={1} backgroundColor="claude" />
+              </Box>
+              <Box width={4} justifyContent="flex-end">
+                <Text>{String(n)}</Text>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+function historyView({ ui: { Box, Markdown, Text }, all, months }: Pane) {
+  const days = dayRows(all)
+  const first = all[0]
+  const firstMonth = first === undefined ? undefined : month(first.ts)
+  const rolled = Object.keys(months).some(key => firstMonth === undefined || key < firstMonth)
+  const change = levelChange(months)
+  const heading = (title: string, note?: string) => (
+    <Box flexDirection="row" gap={1}>
+      <Text bold>{title}</Text>
+      {note !== undefined && <Text dimColor>{note}</Text>}
+    </Box>
+  )
+  return (
+    <Box flexDirection="column" gap={1}>
+      <Box flexDirection="column">
+        {heading('By day', 'Last 14 days with turns')}
+        {days.length === 0 ? <Text dimColor>No days kept.</Text> : <Markdown text={rateTable('Day', days)} />}
+        {dayCount(all) > 14 && (
+          <Text dimColor italic>
+            Older days are counted in By month.
+          </Text>
+        )}
+      </Box>
+      <Box flexDirection="column">
+        {heading('By month')}
+        <Markdown text={rateTable('Month', monthRows(months))} />
+        {change !== '' && <Text dimColor>{change}</Text>}
+        {rolled && (
+          <Text dimColor italic>
+            {`${firstMonth === undefined ? 'Older months' : `Months before ${monthLabel(firstMonth)}`} keep totals only: no days, no tips.`}
+          </Text>
+        )}
+      </Box>
     </Box>
   )
 }
@@ -222,10 +496,16 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, check)
-    if (current === null || e.props.hasSurvey) return next(e)
+    if (current === null || e.props.hasSurvey || current.hiddenOn?.includes(e.surface)) return next(e)
     const ui = $.ui.resolve(e)
     const { Box, Text } = ui
     const theirs = await next(e)
+    const hide = () =>
+      update($, check, latest =>
+        latest?.id === current.id && !latest.hiddenOn?.includes(e.surface) ? { ...latest, hiddenOn: [...(latest.hiddenOn ?? []), e.surface] } : latest,
+      ).catch(error =>
+        $.ui.log(`the tips were not hidden: ${String(error)}`),
+      )
     return (
       <Box flexDirection="column">
         {theirs}
@@ -234,7 +514,7 @@ export const register: Register = (on, options) => {
             <Text dimColor>English coach · checking your message…</Text>
           </Box>
         ) : (
-          card(ui, current.tips, String(current.id))
+          card(ui, current.tips, String(current.id), e.surface !== 'terminal' ? hide : undefined)
         )}
       </Box>
     )
@@ -254,30 +534,54 @@ export const register: Register = (on, options) => {
     const months = merge([...rollups, monthly(all)])
     const mine = turns[sessionKeys.indexOf(`session:${id}`)] ?? []
 
-    const section = (title: string, body: string) => `**${title}**\n\n${body || '_No turns yet._'}`
-    const summary = table([totalsRow('All sessions', Object.values(months).reduce(add, ZERO)), row('This session', mine)])
-    const days = byDay(all)
-    const monthRows = byMonth(months)
-    const daily = section('By day', days.length === 0 ? '' : table(days))
-    const perMonth = section('By month', monthRows.length === 0 ? '' : table(monthRows))
-    const latest = section('Recent turns', recent(all))
-
     const ui = $.ui.resolve(e)
     const { Box, Button, Markdown } = ui
+    if (e.surface === 'terminal') {
+      const section = (title: string, body: string) => `**${title}**\n\n${body || '_No turns yet._'}`
+      const days = byDay(all)
+      const monthList = byMonth(months)
+      return (
+        <Box flexDirection="column" gap={1}>
+          {paused && <Markdown text={PAUSED_HINT} />}
+          {native === '' && <Markdown text={NATIVE_HINT} />}
+          <Markdown text={table([totalsRow('All sessions', Object.values(months).reduce(add, ZERO)), row('This session', mine)])} />
+          <Markdown text={section('By day', days.length === 0 ? '' : table(days))} />
+          <Markdown text={section('By month', monthList.length === 0 ? '' : table(monthList))} />
+          <Markdown text={section('Recent turns', recent(all))} />
+        </Box>
+      )
+    }
+
+    const [selected, current] = await Promise.all([read($, view), read($, check)])
+    const now = selected === 'tips' ? await $.clock.now() : 0
+    midnight?.cancel()
+    midnight =
+      selected === 'tips'
+        ? $.clock.after(nextDay(now) - now, () => update($, revision, n => n + 1).catch(error => $.ui.log(`the pane was not refreshed: ${String(error)}`)))
+        : undefined
+    const pane: Pane = { ui, all, mine, months, now, total: Object.values(months).reduce(add, ZERO) }
+    const empty = pane.total.turns === 0
+    const body = empty ? emptyView(pane) : selected === 'tips' ? tipsView(pane) : selected === 'history' ? historyView(pane) : overview(pane)
     return (
       <Box flexDirection="column" gap={1}>
-        {e.surface !== 'terminal' && (
-          <Button role="dismiss" onPress={() => $.ui.close({ id: PANE }).catch(error => $.ui.log(`the pane was not closed: ${String(error)}`))}>
-            Close
-          </Button>
+        <Button role="dismiss" onPress={() => $.ui.close({ id: PANE }).catch(error => $.ui.log(`the pane was not closed: ${String(error)}`))}>
+          Close
+        </Button>
+        {strip(pane, [paused && 'paused', native === '' && 'native', current?.tips === null && 'checking'])}
+        {!empty && (
+          <Box flexDirection="row" flexWrap="wrap" gap={1}>
+            {VIEWS.map(([key, label, hotkey]) => (
+              <Button
+                variant={key === selected ? 'primary' : 'secondary'}
+                hotkey={hotkey}
+                onPress={() => update($, view, () => key).catch(error => $.ui.log(`the view was not changed: ${String(error)}`))}
+              >
+                {label}
+              </Button>
+            ))}
+          </Box>
         )}
-        {paused && <Markdown text={PAUSED_HINT} />}
-        {native === '' && <Markdown text={NATIVE_HINT} />}
-        <Markdown text={summary} />
-        {e.surface !== 'terminal' && 'Svg' in ui && <ui.Svg source={barChart(all)} alt={`Findings per turn for the last ${Math.min(all.length, 30)} turns`} />}
-        <Markdown text={daily} />
-        <Markdown text={perMonth} />
-        <Markdown text={latest} />
+        {body}
       </Box>
     )
   })
