@@ -51,3 +51,19 @@ Consequences:
 - Regenerate the cases after any change to `stripPasted` or `UNCHANGED` too.
 - The graders are still looser than `splitTips()` on an unquoted fix that is not a no-change word: `→ looks good`, `→ unchanged` or `→ okay` passes a `mistake` grader, while `splitTips()` reads no tip: it skips that bullet, and a reply with no other tip line counts as unreadable, so the plugin logs a failed check and stores no turn.
 - A run on 3 November 2026 passed 78 of 114 runs, against 34 of 114 for the first run. Four of the seven trap graders are gone, since `stripPasted` removes their text, so the trap scores of the two runs are not comparable.
+
+## Amended 2026-11-03: a fix grader fails a fix that keeps the mistake
+
+A tip can name the right mistake and give a fix that is still wrong, such as `"depends of" → "depends from"`. The `mistake` grader passed it. Each mistake now also gets a `fix-<n>-<category>` grader (`not_contains`): it fails the case when a tip whose quote holds the mistake, with any text around it, gives a fix that still matches the mistake.
+
+- The fix side is checked against the mistake's `match`. A mistake sets `fixMatch` in `dataset.json` when `match` would also reject a right fix: `blocked-since`, `precise` and `control-migrations` do, so "we currently use", "be more precise" or "version control" pass.
+- A `capitalization` mistake is matched case-sensitively on the fix side, so `"i tried" → "I tried"` passes. Every other pattern stays case-insensitive.
+- `cases.check.ts` checks that each fix grader passes the dataset's own fix and fails a fix that keeps the mistake, alone or in a whole sentence, and that each `fixMatch` passes right fixes holding the mistake's word.
+
+A production guard was measured and rejected: [a second call proofreads each fix](2026-11-03-a-second-call-proofreads-each-fix.md).
+
+Consequences:
+
+- A wrong fix is caught by the evals, not shown less often to the user.
+- A `fixMatch` lists the words around the mistake it looks for. A wrong fix in a context it does not list, such as "Can you also precise what…" or "do the control that…", passes. Each attempt to widen the lists also failed right fixes.
+- A run on 3 November 2026 with the fix graders passed 77 of 114 runs; the fix graders passed 100 of 102. Both failures were real: Haiku kept the false friend, `"Actually we use" → "Actually, we use"`.
