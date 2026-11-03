@@ -104,6 +104,22 @@ test('stripPasted removes a fence inside a list item, however deep it is indente
   expect(stripPasted('see:\n- the log\n      ```\n      boom\n      ```\nit crash')).toBe('see:\n- the log\nit crash')
 })
 
+test('stripPasted drops the tags of a message pasted into the composer and keeps the pasted prose', async () => {
+  const pasted = '\n\n<pasted_content id="0568">\nYesterday I have deploy the new version.\nBut the tests was failing since two days.\n</pasted_content id="0568">\n'
+  expect(stripPasted(pasted)).toBe('Yesterday I have deploy the new version.\nBut the tests was failing since two days.')
+  expect(countWords(stripPasted(pasted))).toBe(countWords('Yesterday I have deploy the new version.\nBut the tests was failing since two days.'))
+})
+
+test('stripPasted strips fences and blockquotes inside a paste, and keeps the typed text around it', async () => {
+  const text = ['Please look at this:', '', '<pasted_content id="0568">', 'The deploy fail again, here is the log:', '```', 'Error: the user have no rights', '```', '> the reviewer say it was fine', 'It break only on staging.', '</pasted_content id="0568">', '', ' Thanks you'].join('\n')
+  expect(stripPasted(text)).toBe('Please look at this:\n\nThe deploy fail again, here is the log:\nIt break only on staging.\n\n Thanks you')
+})
+
+test('stripPasted ends an unclosed fence at the end of its paste', async () => {
+  const text = '<pasted_content id="1">\nthe log:\n```\nboom\n</pasted_content id="1">\nwhy it crash?'
+  expect(stripPasted(text)).toBe('the log:\nwhy it crash?')
+})
+
 test('stripPasted closes a fence only on a marker at least as long as the one that opened it', async () => {
   expect(stripPasted('````md\n```\ninner\n```\nstill fenced\n````\nafter')).toBe('after')
 })

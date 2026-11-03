@@ -9,6 +9,7 @@ const BULLET = /^\s*(?:[-*]|\d+\.)\s/
 const FENCE = /^\s*(?:```|~~~)/
 const OPEN = /^\s*(`{3,}(?=[^`]*$)|~{3,})/
 const CLOSE = /^\s*(`{3,}|~{3,})\s*$/
+const PASTE = /^\s*<\/?pasted_content(?:\s[^>]*)?>\s*$/
 
 const outsideFence = (lines: string[], index: number) => lines.slice(0, index).filter(line => FENCE.test(line)).length % 2 === 0
 
@@ -55,6 +56,10 @@ export const stripPasted = (text: string) => {
   const kept: string[] = []
   let fence = ''
   for (const line of text.split(/\r?\n/)) {
+    if (PASTE.test(line)) {
+      fence = ''
+      continue
+    }
     if (fence !== '') {
       const close = CLOSE.exec(line)?.[1] ?? ''
       if (close[0] === fence[0] && close.length >= fence.length) fence = ''
