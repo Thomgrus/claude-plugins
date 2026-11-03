@@ -7,6 +7,8 @@ export const ITEM = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["
 export const UNCHANGED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)[\s([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\b(?!.*["“”]).*$/i
 const BULLET = /^\s*(?:[-*]|\d+\.)\s/
 const FENCE = /^\s*(?:```|~~~)/
+const OPEN = /^\s*(`{3,}(?=[^`]*$)|~{3,})/
+const CLOSE = /^\s*(`{3,}|~{3,})\s*$/
 
 const outsideFence = (lines: string[], index: number) => lines.slice(0, index).filter(line => FENCE.test(line)).length % 2 === 0
 
@@ -53,10 +55,13 @@ export const stripPasted = (text: string) => {
   const kept: string[] = []
   let fence = ''
   for (const line of text.split(/\r?\n/)) {
-    const marker = /^\s*(```|~~~)/.exec(line)?.[1] ?? ''
     if (fence !== '') {
-      if (marker === fence) fence = ''
-    } else if (marker !== '') fence = marker
+      const close = CLOSE.exec(line)?.[1] ?? ''
+      if (close[0] === fence[0] && close.length >= fence.length) fence = ''
+      continue
+    }
+    const open = OPEN.exec(line)?.[1] ?? ''
+    if (open !== '') fence = open
     else if (!/^\s*>/.test(line)) kept.push(line)
   }
   return kept
