@@ -78,9 +78,11 @@ async function review($: Pick<EngineInterface, 'model' | 'store' | 'clock' | 'en
   if (turns.length < REVIEW_AFTER) return
   const path = await progressPath($)
   const progress = await $.fs.read(path)
-  const reply = await $.model.complete({ model: 'sonnet', system: REVIEW, prompt: reviewAsk(progress, day(await $.clock.now()), turns), maxTokens: 4000, timeoutMs: 120000 })
+  const prompt = reviewAsk(progress, day(await $.clock.now()), turns)
+  const cap = Math.min(4000 + prompt.length, 64000)
+  const reply = await $.model.complete({ model: 'sonnet', system: REVIEW, prompt, maxTokens: cap, timeoutMs: 120000 })
   const file = reply.isAnswered ? unwrap(reply.text) : ''
-  const cut = reply.isAnswered && reply.usage.output_tokens >= 4000
+  const cut = reply.isAnswered && reply.usage.output_tokens >= cap
   if (!reply.isAnswered || cut || !keepsSections(progress, file)) {
     $.ui.log(`the progress review failed (${!reply.isAnswered ? why(reply) : cut ? 'the reply hit the token cap' : 'the reply lost a section'})`)
     return
@@ -261,9 +263,14 @@ export const register: Register = (on, options) => {
     const latest = section('Recent turns', recent(all))
 
     const ui = $.ui.resolve(e)
-    const { Box, Markdown } = ui
+    const { Box, Button, Markdown } = ui
     return (
       <Box flexDirection="column" gap={1}>
+        {e.surface !== 'terminal' && (
+          <Button role="dismiss" onPress={() => $.ui.close({ id: PANE }).catch(error => $.ui.log(`the pane was not closed: ${String(error)}`))}>
+            Close
+          </Button>
+        )}
         {paused && <Markdown text={PAUSED_HINT} />}
         {native === '' && <Markdown text={NATIVE_HINT} />}
         <Markdown text={summary} />

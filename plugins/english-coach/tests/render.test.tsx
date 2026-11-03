@@ -47,6 +47,56 @@ test('the pane draws history from every session on desktop', async ($, on) => {
   await ui.unmount()
 })
 
+const PANE_PROPS = { title: 'English coach', isFocused: false, bodyColumns: 60, placement: 'dock', scroll: { offset: 0, bodyRows: 40 }, view: {} } as const
+
+test('the pane has a Close button on desktop that closes it', async ($, on) => {
+  on('store.keys', () => ({ value: [] }))
+  on('store.get', () => ({ value: undefined }))
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  const closed: string[] = []
+  on('ui.close', ($, e) => {
+    closed.push(e.id)
+    return { value: undefined }
+  })
+  const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'desktop', component: 'Pane', requestId: 'english', props: PANE_PROPS })
+  const button = await ui.find({ type: 'Button', text: 'Close' })
+  expect(button?.props.role).toBe('dismiss')
+  await ui.press({ key: button?.key ?? '' })
+  expect(closed).toEqual(['english'])
+  await ui.unmount()
+})
+
+test('the pane has no Close button on the terminal', async ($, on) => {
+  on('store.keys', () => ({ value: [] }))
+  on('store.get', () => ({ value: undefined }))
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'terminal', component: 'Pane', requestId: 'english', props: PANE_PROPS })
+  expect(await ui.find({ type: 'Markdown', text: 'All sessions' })).toBeDefined()
+  expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
+  await ui.unmount()
+})
+
+test('a refused close is logged and the press does not throw', async ($, on) => {
+  on('store.keys', () => ({ value: [] }))
+  on('store.get', () => ({ value: undefined }))
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  on('ui.close', () => ({ deny: 'kept open' }))
+  const logged = new Promise<string>(resolve =>
+    on('ui.log', ($, e) => {
+      resolve(e.text)
+      return { value: undefined }
+    }),
+  )
+  const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'desktop', component: 'Pane', requestId: 'english', props: PANE_PROPS })
+  const button = await ui.find({ type: 'Button', text: 'Close' })
+  await ui.press({ key: button?.key ?? '' })
+  expect(await logged).toContain('the pane was not closed')
+  await ui.unmount()
+})
+
 test('the band shows the coach tips above the prompt', async ($, on) => {
   on('session.id', () => ({ value: 'a' }))
   on('session.cwd', () => ({ value: '/w' }))
