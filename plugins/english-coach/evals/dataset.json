@@ -14,7 +14,7 @@
     "message": "The staging deploy is blocked since this morning. Actually we use the old pipeline, so maybe the problem comes from there.",
     "mistakes": [
       { "category": "verb-form", "wrong": "is blocked since", "fix": "has been blocked since", "match": "is blocked since" },
-      { "category": "word-choice", "wrong": "Actually we use", "fix": "We currently use", "match": "actually", "fixMatch": "actually,? we use" }
+      { "category": "word-choice", "wrong": "Actually we use", "fix": "We currently use", "match": "actually", "fixMatch": "\\b(?:actually,?[ \\t]+we|we(?:'re|[ \\t]+(?:are|do))?[ \\t]+actually)\\b(?![ \\t]+(?:currently|now)\\b)" }
     ]
   },
   {
@@ -82,7 +82,7 @@
     "id": "precise",
     "message": "Can you precise what you mean by 'stale'? I am not sure to understand.",
     "mistakes": [
-      { "category": "word-choice", "wrong": "precise what you mean", "fix": "clarify what you mean", "match": "precise", "fixMatch": "precise (?:what|how|why|which|the|your|it|this|that)\\b" },
+      { "category": "word-choice", "wrong": "precise what you mean", "fix": "clarify what you mean", "match": "precise", "fixMatch": "(?:(?<=[\"“][ \\t]*)|\\b(?:you|u|to|I|we|me|please|can|could|must|should|will|would|just|kindly|better)[ \\t,]+)precise\\b" },
       { "category": "calque", "wrong": "I am not sure to understand", "fix": "I'm not sure I understand", "match": "sure to understand" }
     ]
   },
@@ -117,7 +117,7 @@
   {
     "id": "control-migrations",
     "message": "Before merging, can you control that all the migrations are reversible?",
-    "mistakes": [{ "category": "calque", "wrong": "control that", "fix": "check that", "match": "control", "fixMatch": "control (?:that|if|whether)\\b" }]
+    "mistakes": [{ "category": "calque", "wrong": "control that", "fix": "check that", "match": "control", "fixMatch": "(?<!\\b(?:version|source|flow|under|in|access|quality|of|the|take|took)[ \\t-]+)control\\b(?![ \\t-]+(?:flow|plane|panel|group|check|list)\\b)" }]
   },
   {
     "id": "export-take",

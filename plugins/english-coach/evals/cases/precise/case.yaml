@@ -43,7 +43,7 @@ graders:
     match: "contains"
   - name: "fix-1-word-choice"
     type: "regex"
-    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][ \\t]*(?<quote>(?:[^\"”\\s][^\"”\\n]*)?(?:precise)(?:[^\"”\\n]*[^\"”\\s])?)[ \\t]*[\"”][ \\t]*(?:→|->|=>)(?![^\\S\\n]*[\"“][^\\S\\n]*(?-i:\\k<quote>)[^\\S\\n]*[\"”](?:(?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-]))|(?![^\\n]*[\"”](?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-])))))(?![ \\t([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\\b)[ \\t]*[\"“][^\"”\\n]*(?:precise (?:what|how|why|which|the|your|it|this|that)\\b)"
+    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][ \\t]*(?<quote>(?:[^\"”\\s][^\"”\\n]*)?(?:precise)(?:[^\"”\\n]*[^\"”\\s])?)[ \\t]*[\"”][ \\t]*(?:→|->|=>)(?![^\\S\\n]*[\"“][^\\S\\n]*(?-i:\\k<quote>)[^\\S\\n]*[\"”](?:(?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-]))|(?![^\\n]*[\"”](?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-])))))(?![ \\t([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\\b)[ \\t]*[\"“][^\"”\\n]*(?:(?:(?<=[\"“][ \\t]*)|\\b(?:you|u|to|I|we|me|please|can|could|must|should|will|would|just|kindly|better)[ \\t,]+)precise\\b)"
     flags: "im"
     match: "not_contains"
   - name: "fix-2-calque"

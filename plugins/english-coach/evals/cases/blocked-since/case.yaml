@@ -48,6 +48,6 @@ graders:
     match: "not_contains"
   - name: "fix-2-word-choice"
     type: "regex"
-    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][ \\t]*(?<quote>(?:[^\"”\\s][^\"”\\n]*)?(?:actually)(?:[^\"”\\n]*[^\"”\\s])?)[ \\t]*[\"”][ \\t]*(?:→|->|=>)(?![^\\S\\n]*[\"“][^\\S\\n]*(?-i:\\k<quote>)[^\\S\\n]*[\"”](?:(?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-]))|(?![^\\n]*[\"”](?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-])))))(?![ \\t([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\\b)[ \\t]*[\"“][^\"”\\n]*(?:actually,? we use)"
+    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][ \\t]*(?<quote>(?:[^\"”\\s][^\"”\\n]*)?(?:actually)(?:[^\"”\\n]*[^\"”\\s])?)[ \\t]*[\"”][ \\t]*(?:→|->|=>)(?![^\\S\\n]*[\"“][^\\S\\n]*(?-i:\\k<quote>)[^\\S\\n]*[\"”](?:(?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-]))|(?![^\\n]*[\"”](?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-])))))(?![ \\t([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\\b)[ \\t]*[\"“][^\"”\\n]*(?:\\b(?:actually,?[ \\t]+we|we(?:'re|[ \\t]+(?:are|do))?[ \\t]+actually)\\b(?![ \\t]+(?:currently|now)\\b))"
     flags: "im"
     match: "not_contains"
