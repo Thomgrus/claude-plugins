@@ -64,7 +64,7 @@ const readTips = (lines: string[], inFence: boolean[]) => {
 
 export const splitTips = (text: string) => {
   if (!/english tips/i.test(text)) return null
-  const lines = text.split(/\r?\n/)
+  const lines = text.split('\n').map(line => line.replace(/\r+$/, ''))
   const { marks, unclosed } = fenced(lines)
   return readTips(lines, marks) ?? (unclosed < 0 ? null : readTips(lines, marks.map((mark, i) => mark && i < unclosed)))
 }
