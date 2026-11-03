@@ -1,5 +1,18 @@
 # Review rules
 
+## What Important means here
+
+A bug a user would hit, personal data committed or sent somewhere new, or a broken Invariant. Style, naming and refactors are Nit at most.
+
+## Cap the nits
+
+Report at most five Nits per review.
+
+## Do not report
+
+- What the Gate already checks: type errors, failing tests, plugin validation.
+- `package-lock.json`, and anything but personal data in generated eval cases.
+
 ## Gate
 
 - `npm run typecheck`, `npm test`, `npm run build` in the touched plugin.
