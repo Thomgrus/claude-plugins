@@ -78,3 +78,23 @@ test('splitTips reads a list of only same-sentence tips like a none line', async
   expect(splitTips(text)).toEqual({ body: 'Done.', tips: [], tail: 'Bye.' })
   expect(splitTips('Done.\n\nEnglish tips: none\n\nBye.')).toEqual({ body: 'Done.', tips: [], tail: 'Bye.' })
 })
+
+test('splitTips reads a bullet whose fix is an unquoted no-change phrase as a clean message', async () => {
+  for (const bullet of [
+    '- "Run the linter and fix whatever it reports, but don\'t touch the generated files in `src/gen/`." → none',
+    '- "I\'ve been working on this migration for two days and I\'m still not sure the rollback works." → no big mistake [none] ',
+    '- "Can you add a retry with exponential backoff to the HTTP client? Three attempts should be enough." → no big mistake',
+    '- "Run `npm run test:e2e -- --grep "login flow"` and tell me which specs fail." → (no mistake)',
+  ]) {
+    expect(splitTips(`English tips:\n${bullet}`)).toEqual({ body: '', tips: [], tail: '' })
+  }
+})
+
+test('splitTips skips a no-change bullet and keeps the real tip after it', async () => {
+  const text = ['English tips:', '- "Can you add a test for the edge case?" → fine, no tip', '- "the file exist" → "the file exists" [verb-form]'].join('\n')
+  expect(splitTips(text)?.tips).toEqual([{ wrong: 'the file exist', fix: 'the file exists', note: '', category: 'verb-form' }])
+})
+
+test('splitTips still refuses a bullet whose unquoted fix is not a no-change phrase', async () => {
+  expect(splitTips('English tips:\n- "x" → rewrite it')).toBeNull()
+})
