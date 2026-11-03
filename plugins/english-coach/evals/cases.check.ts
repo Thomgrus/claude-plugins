@@ -34,14 +34,16 @@ const grader = (id: string, name: string) => {
 const TIPS = 'Done.\n\nEnglish tips:\n'
 const NONE_REPLY = 'Done.\n\nEnglish tips: none'
 
-const REPLIES = [
+const LF_REPLIES = [
   NONE_REPLY,
   'Done.\n\n**English tips:** none',
   'Done.\n\n`English tips: none` — all good',
   `${TIPS}- "a" → "b" [grammar]`,
+  `${TIPS}- "a" → "b" [grammar]\n\nBye.`,
   'Done.\n\n## English tips\n\n1. "a" -> "b"',
   `${TIPS}- "a" → write it in English\n- "c" → "d" [grammar]`,
   `${TIPS}- "a whole sentence that is fine." → none`,
+  `${TIPS}- "a whole sentence that is fine." → none\n\nBye.`,
   `${TIPS}- "a whole sentence that is fine." → fine, no tip\n- "c" → "d" [grammar]`,
   `${TIPS}- "a whole sentence that is fine." → (no mistake)`,
   `${TIPS}Nothing to fix.`,
@@ -50,6 +52,8 @@ const REPLIES = [
   'Done.\n\nEnglish tips: none of the above apply here',
   'Done.',
 ]
+
+const REPLIES = [...LF_REPLIES, ...LF_REPLIES.map(reply => reply.replaceAll('\n', '\r\n'))]
 
 test('every dataset entry has a generated case with one grader per mistake and trap', () => {
   assert.deepEqual(readdirSync(new URL('cases/', root)).sort(), entries.map(entry => entry.id).sort())
