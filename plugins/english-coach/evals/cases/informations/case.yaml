@@ -37,6 +37,6 @@ graders:
     match: "contains"
   - name: "fix-1-other"
     type: "regex"
-    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][ \\t]*(?<quote>(?:[^\"”\\s]+[ \\t]+){0,4}[^\"”\\s]*(?:informations)[^\"”\\s]*(?:[ \\t]+[^\"”\\s]+){0,4})[ \\t]*[\"”][ \\t]*(?:→|->|=>)(?![^\\S\\n]*[\"“][^\\S\\n]*(?-i:\\k<quote>)[^\\S\\n]*[\"”](?:(?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-]))|(?![^\\n]*[\"”](?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-])))))(?![ \\t([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\\b)[ \\t]*[\"“][^\"”\\n]*(?:informations)"
+    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][ \\t]*(?<quote>(?:[^\"”\\s][^\"”\\n]*)?(?:informations)(?:[^\"”\\n]*[^\"”\\s])?)[ \\t]*[\"”][ \\t]*(?:→|->|=>)(?![^\\S\\n]*[\"“][^\\S\\n]*(?-i:\\k<quote>)[^\\S\\n]*[\"”](?:(?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-]))|(?![^\\n]*[\"”](?=[^\\S\\n]*(?:\\[|(?![^\\n])|[—–(-])))))(?![ \\t([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\\b)[ \\t]*[\"“][^\"”\\n]*(?:informations)"
     flags: "im"
     match: "not_contains"

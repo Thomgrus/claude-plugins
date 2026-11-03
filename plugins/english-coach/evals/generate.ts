@@ -43,7 +43,7 @@ const graders = (entry: Entry) => [
   regex('format', `${line(NONE)}|${LIST}`, 'contains'),
   ...((entry.mistakes ?? []).length === 0 ? [regex('clean', CLEAN, 'contains')] : []),
   ...(entry.mistakes ?? []).map((mistake, i) => regex(`mistake-${i + 1}-${mistake.category}`, quoting(BEFORE, mistake.match, AFTER), 'contains')),
-  ...(entry.mistakes ?? []).map((mistake, i) => regex(`fix-${i + 1}-${mistake.category}`, `${quoting(BEFORE, mistake.match, AFTER)}[ \\t]*["“][^"”\\n]*${fixing(mistake)}`, 'not_contains')),
+  ...(entry.mistakes ?? []).map((mistake, i) => regex(`fix-${i + 1}-${mistake.category}`, `${quoting(ANY_BEFORE, mistake.match, ANY_AFTER)}[ \\t]*["“][^"”\\n]*${fixing(mistake)}`, 'not_contains')),
   ...visibleTraps(entry).map((trap, i) => regex(`trap-${i + 1}`, quoting(ANY_BEFORE, trap, ANY_AFTER), 'not_contains')),
 ]
 
