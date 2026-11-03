@@ -259,9 +259,14 @@ export const register: Register = (on, options) => {
     const latest = section('Recent turns', recent(all))
 
     const ui = $.ui.resolve(e)
-    const { Box, Markdown } = ui
+    const { Box, Button, Markdown } = ui
     return (
       <Box flexDirection="column" gap={1}>
+        {e.surface !== 'terminal' && (
+          <Button role="dismiss" onPress={() => $.ui.close({ id: PANE }).catch(error => $.ui.log(`the pane was not closed: ${String(error)}`))}>
+            Close
+          </Button>
+        )}
         {paused && <Markdown text={PAUSED_HINT} />}
         {native === '' && <Markdown text={NATIVE_HINT} />}
         <Markdown text={summary} />
