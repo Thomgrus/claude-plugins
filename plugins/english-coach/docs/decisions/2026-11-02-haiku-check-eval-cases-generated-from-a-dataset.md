@@ -57,3 +57,20 @@ Consequences:
 `splitTips()` now strips every trailing `\r` from a reply line, so it reads CRLF and doubled-CR replies. `line()` in `generate.ts` ends a line on `\r*` to match, and `cases.check.ts` checks the `format` and `clean` graders against LF, CRLF and doubled-CR copies of each sample reply.
 
 The graders still do not model fences: a list inside a code fence can pass a grader that `splitTips()` ignores.
+
+## Amended 2026-11-03: a fix grader fails a fix that keeps the mistake
+
+A tip can name the right mistake and give a fix that keeps it, such as `"I work on this feature since two weeks" → "I'm working on this feature since two weeks"`. The `mistake` grader passed it. Each mistake now also gets a `fix-<n>-<category>` grader (`not_contains`): it fails the case when a tip whose quote holds the mistake, with any text around it, gives a fix that still matches the mistake.
+
+- The fix side is checked against the mistake's `match`. A mistake sets `fixMatch` in `dataset.json` when `match` would also reject a right fix: `blocked-since`, `precise` and `control-migrations` do, so "we currently use", "be more precise" or "version control" pass.
+- A `capitalization` mistake is matched case-sensitively on the fix side, so `"i tried" → "I tried"` passes. Every other pattern stays case-insensitive.
+- `cases.check.ts` checks that each fix grader passes the dataset's own fix and fails a fix that keeps the mistake, alone or in a whole sentence, and that each `fixMatch` passes right fixes holding the mistake's word.
+
+A production guard was measured and rejected: [a second call proofreads each fix](2026-11-03-a-second-call-proofreads-each-fix.md).
+
+Consequences:
+
+- A fix that keeps the mistake is caught by the evals, not shown less often to the user.
+- A fix that drops the mistake but makes another one passes, such as `"depends of" → "depends from"`: the fix grader looks only for the mistake it was given.
+- A `fixMatch` lists the words around the mistake it looks for, so it misses both ways. A wrong fix in a context it does not list passes: "Can you also precise what…", "Thanks. Precise what you mean" or "do the control that…". A right fix in a context it does not list fails, such as "make sure we have control over it". Each attempt to widen the lists also failed right fixes. `cases.check.ts` names `precise` as the mistake checked only in a listed context.
+- A run on 3 November 2026 with the fix graders passed 77 of 114 runs; the fix graders passed 100 of 102. Both failures were real: Haiku kept the false friend, `"Actually we use" → "Actually, we use"`. A second run of that case alone kept "Actually" in all 4 runs, so this is how Haiku answers, not a rare slip.

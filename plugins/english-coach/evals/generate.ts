@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { ask, COACH, TEMPLATE } from '../hooks/rule.ts'
 import { HEADER, ITEM, NONE, stripPasted, UNCHANGED } from '../hooks/tips.ts'
 
-type Mistake = { category: string; wrong: string; fix: string; match: string }
+type Mistake = { category: string; wrong: string; fix: string; match: string; fixMatch?: string }
 type Entry = { id: string; message: string; mistakes?: Mistake[]; traps?: string[] }
 
 const NATIVE = 'French'
@@ -33,6 +33,11 @@ const AFTER = '[^"”\\s]*(?:[ \\t]+[^"”\\s]+){0,4}'
 const quoting = (before: string, fragment: string, after: string) =>
   `^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“][ \\t]*(?<quote>${before}(?:${fragment})${after})[ \\t]*["”][ \\t]*${ARROW}(?!${SAME_FIX('quote')})(?!${UNCHANGED_FIX})`
 
+const fixing = (mistake: Mistake) => {
+  const pattern = mistake.fixMatch ?? mistake.match
+  return mistake.category === 'capitalization' ? `(?-i:${pattern})` : `(?:${pattern})`
+}
+
 const regex = (name: string, pattern: string, match: 'contains' | 'not_contains') => ({ name, type: 'regex', pattern, flags: 'im', match })
 
 const visibleTraps = (entry: Entry) => (entry.traps ?? []).filter(trap => new RegExp(trap, 'i').test(stripPasted(entry.message)))
@@ -41,6 +46,7 @@ const graders = (entry: Entry) => [
   regex('format', `${line(NONE)}|${LIST}`, 'contains'),
   ...((entry.mistakes ?? []).length === 0 ? [regex('clean', CLEAN, 'contains')] : []),
   ...(entry.mistakes ?? []).map((mistake, i) => regex(`mistake-${i + 1}-${mistake.category}`, quoting(BEFORE, mistake.match, AFTER), 'contains')),
+  ...(entry.mistakes ?? []).map((mistake, i) => regex(`fix-${i + 1}-${mistake.category}`, `${quoting(ANY_BEFORE, mistake.match, ANY_AFTER)}[ \\t]*["“][^"”\\n]*${fixing(mistake)}`, 'not_contains')),
   ...visibleTraps(entry).map((trap, i) => regex(`trap-${i + 1}`, quoting(ANY_BEFORE, trap, ANY_AFTER), 'not_contains')),
 ]
 
