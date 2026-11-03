@@ -157,12 +157,13 @@ test('the review writes the file Sonnet returns without the progress tags it was
 const reviewRun = async (
   $: Parameters<TestBody>[0],
   on: Parameters<TestBody>[1],
-  reply: ModelCompleteResult,
+  reply: ModelCompleteResult | ((ask: { prompt: string }) => ModelCompleteResult),
   reads: string[] = [PROGRESS, PROGRESS],
 ) => {
   const turns = Array.from({ length: 10 }, (_, i) => ({ turnId: String(i), ts: i + 1, words: 5, level: 2, tips: [] }))
   const writes: string[] = []
   const sets: unknown[] = []
+  const asks: { prompt: string; maxTokens?: number }[] = []
   let stored: (value: unknown) => void = () => undefined
   const saved = new Promise(resolve => (stored = resolve))
   on('session.id', () => ({ value: 'me' }))
@@ -183,7 +184,10 @@ const reviewRun = async (
     writes.push(e.text)
     return { value: undefined }
   })
-  on('model.complete', () => ({ value: reply }))
+  on('model.complete', (_$, e) => {
+    asks.push({ prompt: e.prompt, maxTokens: e.maxTokens })
+    return { value: typeof reply === 'function' ? reply(e) : reply }
+  })
   const logged = new Promise(resolve =>
     on('ui.log', (_$, e) => {
       resolve(e.text)
@@ -192,13 +196,29 @@ const reviewRun = async (
   )
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: false })
-  return { logged, saved, writes, sets }
+  return { logged, saved, writes, sets, asks }
 }
 
 test('a review that hits the token cap is logged and writes nothing', async ($, on) => {
-  const run = await reviewRun($, on, { isAnswered: true, text: PROGRESS, usage: { ...USAGE, output_tokens: 64000 } })
+  const run = await reviewRun($, on, ask => ({
+    isAnswered: true,
+    text: PROGRESS,
+    usage: { ...USAGE, output_tokens: 4000 + ask.prompt.length },
+  }))
   expect(String(await run.logged)).toContain('the progress review failed (the reply hit the token cap)')
   expect(run.writes).toEqual([])
+  expect(run.asks).toHaveLength(1)
+  expect(run.asks[0]?.maxTokens).toBe(4000 + (run.asks[0]?.prompt.length ?? 0))
+})
+
+test('a review one token under the cap is written', async ($, on) => {
+  const run = await reviewRun($, on, ask => ({
+    isAnswered: true,
+    text: PROGRESS,
+    usage: { ...USAGE, output_tokens: 4000 + ask.prompt.length - 1 },
+  }))
+  expect(await run.saved).toEqual({ key: 'review:at', value: 10 })
+  expect(run.writes).toEqual([PROGRESS])
 })
 
 test('a review of a long file is written past 4,000 output tokens, thinking included', async ($, on) => {
