@@ -66,6 +66,19 @@ test('splitTips ignores a tips list inside a code fence', async () => {
   expect(splitTips(`${fenced}\nEnglish tips:\n- "c" → "d"`)?.tips).toEqual([{ wrong: 'c', fix: 'd', note: '', category: '' }])
 })
 
+test('splitTips ignores a tips list inside a nested fence, as stripPasted reads it', async () => {
+  const nested = ['Here is the format:', '````md', '```', 'English tips:', '- "a" → "b"', '```', '````'].join('\n')
+  expect(stripPasted(nested)).toBe('Here is the format:')
+  expect(splitTips(nested)).toBeNull()
+  expect(splitTips(`${nested}\nEnglish tips:\n- "c" → "d"`)?.tips).toEqual([{ wrong: 'c', fix: 'd', note: '', category: '' }])
+})
+
+test('splitTips reads a CRLF reply', async () => {
+  const split = splitTips(['Done.', '', 'English tips:', '- "doing effort" → "making an effort" [calque]', '', 'Bye.'].join('\r\n'))
+  expect(split).toEqual({ body: 'Done.', tips: [{ wrong: 'doing effort', fix: 'making an effort', note: '', category: 'calque' }], tail: 'Bye.' })
+  expect(splitTips('Done.\r\n\r\nEnglish tips: none\r\n\r\nBye.')).toEqual({ body: 'Done.', tips: [], tail: 'Bye.' })
+})
+
 test('splitTips drops a tip whose fix is the same sentence and keeps the others', async () => {
   const split = splitTips(
     ['English tips:', '- "Bump the version." → " Bump the version. " [none]', '- "human on the loop" → "human in the loop" [preposition]'].join('\n'),
