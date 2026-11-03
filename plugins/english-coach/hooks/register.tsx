@@ -238,7 +238,9 @@ export const register: Register = (on, options) => {
     const { Box, Text } = ui
     const theirs = await next(e)
     const hide = () =>
-      update($, check, latest => (latest?.id === current.id ? { ...latest, hiddenOn: [...(latest.hiddenOn ?? []), e.surface] } : latest)).catch(error =>
+      update($, check, latest =>
+        latest?.id === current.id && !latest.hiddenOn?.includes(e.surface) ? { ...latest, hiddenOn: [...(latest.hiddenOn ?? []), e.surface] } : latest,
+      ).catch(error =>
         $.ui.log(`the tips were not hidden: ${String(error)}`),
       )
     return (
