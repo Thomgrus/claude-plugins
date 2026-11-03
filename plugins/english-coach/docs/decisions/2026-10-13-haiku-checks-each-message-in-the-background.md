@@ -37,6 +37,10 @@ Not chosen: tips in the main answer (late, and on the main model); awaiting Haik
 
 An eval run of 38 messages, 3 runs each, showed Haiku at `low` effort correcting text the prompt tells it to ignore: a customer's blockquote and a `//` comment inside a fenced block were corrected in 3 runs out of 3, after `COACH` named both word for word.
 
-`stripPasted` in `hooks/tips.ts` now removes blockquote lines (optional spaces, then `>`) and fenced blocks (opened by three backticks or `~~~`; an unclosed fence runs to the end of the message) before the 8,000-character cut, and collapses the blank lines they leave. The cut text in the Decision above reads as the stripped, cut text: it is what Haiku reads and what the word count uses, so a long pasted log no longer uses up the cut. A message with no word left is not checked: no band, no Haiku call, no turn.
+`stripPasted` in `hooks/tips.ts` now removes blockquote lines (optional spaces, then `>`) and fenced blocks (opened by three or more backticks or tildes at any indent, closed only by the same character at least as many times; an unclosed fence runs to the end of the message) before the 8,000-character cut, and collapses the blank lines they leave. The cut text in the Decision above reads as the stripped, cut text: it is what Haiku reads and what the word count uses, so a long pasted log no longer uses up the cut. A message with no word left is not checked: no Haiku call, no turn, and the band of the previous check is cleared.
+
+A fence opens at any indent so that a fence inside a list item is removed. The cost: a lone indented line of three backticks in prose, never closed, removes the rest of the message from the check. A fence opened only at up to three spaces, as CommonMark does, was tried and reverted, since it sent the fenced logs of list items to Haiku.
+
+`splitTips` drops a tip whose fix repeats the quoted text, and reads a bullet whose fix starts with a no-change word (`none`, `no mistake`, `no big mistake`, `no tip`, `no change`, `fine`, `correct`, `ok`) and quotes nothing after it as no tip. Haiku writes both shapes for sentences it found correct.
 
 `COACH` keeps its rule on quoted and pasted text: inline quotes, inline code and indented code still reach Haiku.
