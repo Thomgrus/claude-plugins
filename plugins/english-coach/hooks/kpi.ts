@@ -66,6 +66,8 @@ export const when = (ts: number, now: number) => {
 
 export const month = (ts: number) => day(ts).slice(0, 7)
 
+export const nextDay = (ts: number) => new Date(ts).setHours(24, 0, 0, 0)
+
 export const rawFrom = (now: number) => {
   const date = new Date(now)
   return Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1)

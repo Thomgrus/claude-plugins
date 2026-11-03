@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, RenderNode } from 'claude-code'
+import type { EngineInterface, Register, RenderNode, Timer } from 'claude-code'
 
 import type { Monthly, Tip, Totals, Turn, View } from '../types'
 import {
@@ -18,6 +18,7 @@ import {
   monthLabel,
   monthly,
   monthRows,
+  nextDay,
   rates,
   rateTable,
   rawFrom,
@@ -58,6 +59,7 @@ const check = atom({ plugin: 'english-coach', key: 'check' } as const, null)
 const view = atom({ plugin: 'english-coach', key: 'view' } as const, 'overview' as View)
 
 let saving: Promise<unknown> = Promise.resolve()
+let midnight: Timer | undefined
 
 async function progressPath($: Pick<EngineInterface, 'env'>) {
   const home = (await $.env.get('HOME')) || (await $.env.get('USERPROFILE'))
@@ -551,6 +553,11 @@ export const register: Register = (on, options) => {
 
     const [selected, current] = await Promise.all([read($, view), read($, check)])
     const now = selected === 'tips' ? await $.clock.now() : 0
+    midnight?.cancel()
+    midnight =
+      selected === 'tips'
+        ? $.clock.after(nextDay(now) - now, () => update($, revision, n => n + 1).catch(error => $.ui.log(`the pane was not refreshed: ${String(error)}`)))
+        : undefined
     const pane: Pane = { ui, all, mine, months, now, total: Object.values(months).reduce(add, ZERO) }
     const empty = pane.total.turns === 0
     const body = empty ? emptyView(pane) : selected === 'tips' ? tipsView(pane) : selected === 'history' ? historyView(pane) : overview(pane)
