@@ -214,7 +214,7 @@ function strip({ ui: { Box, Text }, all, mine, months, total }: Pane, status: (s
         {level > 0 ? (
           <Box flexDirection="row" gap={1}>
             <Text bold>{`Level ${level}`}</Text>
-            <Text dimColor>{rolled === undefined ? (LEVELS[level] ?? '') : `highest in ${monthLabel(rolled[0])}`}</Text>
+            <Text dimColor>{rolled === undefined ? (LEVELS[level] ?? '') : `${LEVELS[level] ?? ''} · highest in ${monthLabel(rolled[0])}`}</Text>
           </Box>
         ) : (
           <Text dimColor>No turns yet</Text>
