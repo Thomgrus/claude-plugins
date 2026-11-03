@@ -12,19 +12,20 @@ const NATIVE = 'French'
 
 const TOOLS = ['Read', 'Glob', 'Grep', 'NotebookRead', 'Skill', 'AskUserQuestion', 'Agent', 'TodoWrite', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'ToolSearch']
 
-const SPACE = '[^\\S\\n]'
+const SPACE = '[^\\S\\r\\n]'
+const BLANK = `${SPACE}*\\r?`
 const CLASS_SPACE = '\\t\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff'
 const line = (pattern: RegExp) =>
   pattern.source.replaceAll('^', '(?<![^\\n])').replaceAll('$', '\\r?(?![^\\n])').replaceAll('[\\s', `[${CLASS_SPACE}`).replaceAll('\\s', SPACE)
 const BULLET = `${SPACE}*(?:[-*]|\\d+\\.)${SPACE}`
 const ARROW = '(?:→|->|=>)'
-const LIST = `${line(HEADER)}\\n(?:(?:${BULLET}[^\\n]*|${SPACE}*)\\n)*(?:${line(ITEM)}|${line(UNCHANGED)})`
+const LIST = `${line(HEADER)}\\n(?:(?:${BULLET}[^\\n]*|${BLANK})\\n)*(?:${line(ITEM)}|${line(UNCHANGED)})`
 const OTHER = `(?!${line(ITEM)})(?!${line(UNCHANGED)})${BULLET}[^\\n]*`
-const TAIL = `(?=${SPACE}*(?:\\[|(?![^\\n])|[—–(-]))`
+const TAIL = `(?=${SPACE}*(?:\\[|\\r?(?![^\\n])|[—–(-]))`
 const SAME_FIX = (name: string) => `${SPACE}*["“]${SPACE}*(?-i:\\k<${name}>)${SPACE}*["”](?:${TAIL}|(?![^\\n]*["”]${TAIL}))`
 const KEPT = (name: string) =>
   `(?:${SPACE}*(?:[-*]|\\d+\\.)${SPACE}*["“]${SPACE}*(?<${name}>[^\\n]+?)${SPACE}*["”]${SPACE}*${ARROW}${SAME_FIX(name)}[^\\n]*|(?!${line(ITEM)})${line(UNCHANGED)}[^\\n]*)`
-const CLEAN = `${line(NONE)}|${line(HEADER)}(?:\\n(?:${SPACE}*|${OTHER}))*\\n${KEPT('first')}(?:\\n(?:${KEPT('next')}|${OTHER}))*(?![^\\n])(?!\\n${BULLET})`
+const CLEAN = `${line(NONE)}|${line(HEADER)}(?:\\n(?:${BLANK}|${OTHER}))*\\n${KEPT('first')}(?:\\n(?:${KEPT('next')}|${OTHER}))*(?![^\\n])(?!\\n${BULLET})`
 const UNCHANGED_FIX = UNCHANGED.source.slice(UNCHANGED.source.indexOf(ARROW) + ARROW.length, UNCHANGED.source.indexOf(')\\b') + 3).replaceAll('[\\s', '[ \\t').replaceAll('\\s', '[ \\t]')
 const ANY_BEFORE = '(?:[^"”\\s][^"”\\n]*)?'
 const ANY_AFTER = '(?:[^"”\\n]*[^"”\\s])?'
