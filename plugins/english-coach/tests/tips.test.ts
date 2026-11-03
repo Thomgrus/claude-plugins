@@ -120,6 +120,24 @@ test('stripPasted ends an unclosed fence at the end of its paste', async () => {
   expect(stripPasted(text)).toBe('the log:\nwhy it crash?')
 })
 
+test('stripPasted ends a paste only at the closing tag with its id', async () => {
+  const text = ['typed', '```', '<pasted_content id="1">', 'transcript', '</pasted_content id="9">', '```', 'pasted prose', '</pasted_content id="1">', '```', 'after'].join('\n')
+  expect(stripPasted(text)).toBe('typed\nafter')
+  const nested = ['a', '<pasted_content id="1">', 'x', '```', 'log', '<pasted_content id="2">', 'inner', '</pasted_content id="2">', 'tail', '</pasted_content id="1">', 'it crash after'].join('\n')
+  expect(stripPasted(nested)).toBe('a\nx\nit crash after')
+})
+
+test('stripPasted hides a paste inside a typed fence and keeps that fence open after it', async () => {
+  const text = ['here is the log:', '```', '<pasted_content id="1">', 'Error who crash', '</pasted_content id="1">', '```', 'why it crash?'].join('\n')
+  expect(stripPasted(text)).toBe('here is the log:\nwhy it crash?')
+  expect(stripPasted(['see:', '```', '<pasted_content id="1">', 'trace', '</pasted_content id="1">', 'still code'].join('\n'))).toBe('see:')
+})
+
+test('stripPasted keeps the typed text between paste tags the user typed in two code blocks', async () => {
+  const text = ['The composer send this:', '```xml', '<pasted_content id="1">', '```', 'then the user text, and at the end it write:', '```xml', '</pasted_content id="1">', '```', 'Why it not work?'].join('\n')
+  expect(stripPasted(text)).toBe('The composer send this:\nthen the user text, and at the end it write:\nWhy it not work?')
+})
+
 test('stripPasted closes a fence only on a marker at least as long as the one that opened it', async () => {
   expect(stripPasted('````md\n```\ninner\n```\nstill fenced\n````\nafter')).toBe('after')
 })
