@@ -180,3 +180,78 @@ test('a message with nothing left to check clears the band of the previous one',
   expect(await after.find({ type: 'Text', text: 'making an effort' })).toBeUndefined()
   await after.unmount()
 })
+
+test('Hide dismisses the band on the surface that pressed it until the next message', async ($, on) => {
+  let now = 1000
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: now++ }))
+  on('clock.after', () => ({ value: undefined }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: '' }))
+  on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('model.complete', () => ({
+    value: {
+      isAnswered: true,
+      text: 'English tips:\n- "doing effort" → "making an effort" [calque]',
+      usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+    },
+  }))
+  on('store.get', () => ({ value: undefined }))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Box } = $.ui.resolve(e)
+    return <Box />
+  })
+  let saves = 0
+  let onSave = () => {}
+  on('store.set', () => {
+    saves++
+    onSave()
+    return { value: undefined }
+  })
+  const savedCount = (n: number) => new Promise<void>(resolve => (saves >= n ? resolve() : (onSave = () => saves >= n && resolve())))
+  const props = { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} } as const
+  const mount = (surface: 'desktop' | 'terminal') => $.ui.mount({ plugin: 'english-coach', surface, component: 'AbovePrompt', props })
+
+  await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
+  await savedCount(1)
+
+  const terminal = await mount('terminal')
+  expect(await terminal.find({ type: 'Text', text: 'making an effort' })).toBeDefined()
+  expect(await terminal.findAll({ type: 'Button' })).toHaveLength(0)
+  await terminal.unmount()
+
+  const desktop = await mount('desktop')
+  const hide = await desktop.find({ type: 'Button', text: 'Hide' })
+  expect(hide?.props.role).toBe('dismiss')
+  await desktop.press({ key: hide?.key ?? '' })
+  expect(await desktop.find({ type: 'Button', text: 'Hide' })).toBeUndefined()
+  await desktop.unmount()
+
+  const hidden = await mount('desktop')
+  expect(await hidden.find({ type: 'Text', text: 'making an effort' })).toBeUndefined()
+  await hidden.unmount()
+
+  const kept = await mount('terminal')
+  expect(await kept.find({ type: 'Text', text: 'making an effort' })).toBeDefined()
+  await kept.unmount()
+
+  await $.prompt.submit({ text: 'i am doing effort again', wait: true, origin: { kind: 'composer' } })
+  await savedCount(2)
+  const next = await mount('desktop')
+  expect(await next.find({ type: 'Text', text: 'making an effort' })).toBeDefined()
+  expect(await next.find({ type: 'Button', text: 'Hide' })).toBeDefined()
+  await next.unmount()
+})
+
+test('the tips card under a reply has no Hide button', async ($, on) => {
+  on('ui.render', { component: 'AssistantMessage' }, ($, e) => {
+    const { Markdown } = $.ui.resolve(e)
+    return <Markdown text={e.props.text} />
+  })
+  const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'desktop', component: 'AssistantMessage', props: { text: REPLY, isFirstOfReply: true } })
+  expect(await ui.find({ type: 'Text', text: "I'm happy" })).toBeDefined()
+  expect(await ui.findAll({ type: 'Button' })).toHaveLength(0)
+  await ui.unmount()
+})

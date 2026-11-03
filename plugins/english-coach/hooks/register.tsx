@@ -156,15 +156,26 @@ async function rollUp($: Pick<EngineInterface, 'store' | 'clock' | 'session'>) {
   }
 }
 
-function card({ Box, Text }: ReturnType<EngineInterface['ui']['resolve']>, tips: Tip[], text: string) {
+function card({ Box, Button, Text }: ReturnType<EngineInterface['ui']['resolve']>, tips: Tip[], text: string, onHide?: () => void) {
+  const hide = onHide && (
+    <Button role="dismiss" onPress={onHide}>
+      Hide
+    </Button>
+  )
   return tips.length === 0 ? (
-    <Box flexDirection="row" gap={1} borderStyle="round" paddingX={1} marginTop={1}>
-      <Text color="green" bold>✓ No English findings</Text>
-      <Text dimColor>{cheer(text)}</Text>
+    <Box flexDirection="row" justifyContent="space-between" alignItems="center" borderStyle="round" paddingX={1} marginTop={1}>
+      <Box flexDirection="row" gap={1}>
+        <Text color="green" bold>✓ No English findings</Text>
+        <Text dimColor>{cheer(text)}</Text>
+      </Box>
+      {hide}
     </Box>
   ) : (
     <Box flexDirection="column" borderStyle="round" paddingX={1} marginTop={1}>
-      <Text bold>English tips · {tips.length}</Text>
+      <Box flexDirection="row" justifyContent="space-between" alignItems="center">
+        <Text bold>English tips · {tips.length}</Text>
+        {hide}
+      </Box>
       {tips.map(tip => (
         <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
           <Text color="red" strikethrough>{tip.wrong}</Text>
@@ -478,10 +489,16 @@ export const register: Register = (on, options) => {
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const current = await read($, check)
-    if (current === null || e.props.hasSurvey) return next(e)
+    if (current === null || e.props.hasSurvey || current.hiddenOn?.includes(e.surface)) return next(e)
     const ui = $.ui.resolve(e)
     const { Box, Text } = ui
     const theirs = await next(e)
+    const hide = () =>
+      update($, check, latest =>
+        latest?.id === current.id && !latest.hiddenOn?.includes(e.surface) ? { ...latest, hiddenOn: [...(latest.hiddenOn ?? []), e.surface] } : latest,
+      ).catch(error =>
+        $.ui.log(`the tips were not hidden: ${String(error)}`),
+      )
     return (
       <Box flexDirection="column">
         {theirs}
@@ -490,7 +507,7 @@ export const register: Register = (on, options) => {
             <Text dimColor>English coach · checking your message…</Text>
           </Box>
         ) : (
-          card(ui, current.tips, String(current.id))
+          card(ui, current.tips, String(current.id), e.surface !== 'terminal' ? hide : undefined)
         )}
       </Box>
     )
