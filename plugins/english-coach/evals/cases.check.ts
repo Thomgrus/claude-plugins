@@ -42,6 +42,8 @@ const REPLIES = [
   'Done.\n\n## English tips\n\n1. "a" -> "b"',
   `${TIPS}- "a" → write it in English\n- "c" → "d" [grammar]`,
   `${TIPS}- "a whole sentence that is fine." → none`,
+  `${TIPS}- "a whole sentence that is fine." → fine, no tip\n- "c" → "d" [grammar]`,
+  `${TIPS}- "a whole sentence that is fine." → (no mistake)`,
   `${TIPS}Nothing to fix.`,
   `${TIPS}See below.\n- "a" → "b"`,
   'Done. English tips: none',
@@ -82,6 +84,19 @@ test('every mistake is in its message and its grader matches only a tip on it', 
       const pattern = grader(entry.id, `mistake-${i + 1}-${mistake.category}`)
       assert.match(reply, pattern, entry.id)
       assert.doesNotMatch(NONE_REPLY, pattern, entry.id)
+    }
+  }
+})
+
+test('a mistake grader never matches a no-change bullet on its mistake', () => {
+  for (const entry of entries) {
+    for (const [i, mistake] of (entry.mistakes ?? []).entries()) {
+      const pattern = grader(entry.id, `mistake-${i + 1}-${mistake.category}`)
+      for (const fix of ['none', 'no big mistake', '(no mistake)', 'fine, no tip', `"${mistake.wrong}" [none]`]) {
+        const reply = `${TIPS}- "${mistake.wrong}" → ${fix}`
+        assert.equal(splitTips(reply)?.tips.length ?? 0, 0, `${entry.id}: ${reply}`)
+        assert.doesNotMatch(reply, pattern, `${entry.id}: ${reply}`)
+      }
     }
   }
 })

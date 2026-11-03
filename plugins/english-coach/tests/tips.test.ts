@@ -98,3 +98,23 @@ test('splitTips skips a no-change bullet and keeps the real tip after it', async
 test('splitTips still refuses a bullet whose unquoted fix is not a no-change phrase', async () => {
   expect(splitTips('English tips:\n- "x" → rewrite it')).toBeNull()
 })
+
+test('stripPasted removes a fence inside a list item, however deep it is indented', async () => {
+  expect(stripPasted('my steps:\n1. run it\n    ```sh\n    npm test\n    ```\n2. it fail')).toBe('my steps:\n1. run it\n2. it fail')
+  expect(stripPasted('see:\n- the log\n      ```\n      boom\n      ```\nit crash')).toBe('see:\n- the log\nit crash')
+})
+
+test('stripPasted closes a fence only on a marker at least as long as the one that opened it', async () => {
+  expect(stripPasted('````md\n```\ninner\n```\nstill fenced\n````\nafter')).toBe('after')
+})
+
+test('splitTips does not read a bullet that quotes a fix after a no-change word as unchanged', async () => {
+  for (const bullet of ['- "a b" → ok, but use "c d"', '- "a b" → correct form is "c d"', '- "a b" → none of these, say "c d"']) {
+    expect(splitTips(`English tips:\n${bullet}`)).toBeNull()
+  }
+})
+
+test('countWords counts words in any script and skips punctuation and numbers', async () => {
+  expect(countWords('Привет, как дела?')).toBe(3)
+  expect(countWords('— 42 !')).toBe(0)
+})

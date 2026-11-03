@@ -88,3 +88,44 @@ test('the band shows the coach tips above the prompt', async ($, on) => {
     await ui.unmount()
   }
 })
+
+test('a message with nothing left to check clears the band of the previous one', async ($, on) => {
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: 1000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: '' }))
+  on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('model.complete', () => ({
+    value: {
+      isAnswered: true,
+      text: 'English tips:\n- "doing effort" → "making an effort" [calque]',
+      usage: { input_tokens: 1, output_tokens: 1, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 },
+    },
+  }))
+  on('store.get', () => ({ value: undefined }))
+  on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+    const { Box } = $.ui.resolve(e)
+    return <Box />
+  })
+  const saved = new Promise(resolve =>
+    on('store.set', () => {
+      resolve(undefined)
+      return { value: undefined }
+    }),
+  )
+  const props = { hasSurvey: false, isWorking: true, maxRows: 10, bodyColumns: 100, scroll: { offset: 0, bodyRows: 10 }, view: {} } as const
+
+  await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
+  await saved
+  const before = await $.ui.mount({ plugin: 'english-coach', surface: 'terminal', component: 'AbovePrompt', props })
+  expect(await before.find({ type: 'Text', text: 'making an effort' })).toBeDefined()
+  await before.unmount()
+
+  await $.prompt.submit({ text: '> i have buy your product\n```\nfix: the bug who make crash\n```', wait: true, origin: { kind: 'composer' } })
+  const after = await $.ui.mount({ plugin: 'english-coach', surface: 'terminal', component: 'AbovePrompt', props })
+  expect(await after.find({ type: 'Text', text: 'making an effort' })).toBeUndefined()
+  await after.unmount()
+})
