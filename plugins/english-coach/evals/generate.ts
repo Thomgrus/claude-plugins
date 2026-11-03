@@ -12,7 +12,9 @@ const NATIVE = 'French'
 
 const TOOLS = ['Read', 'Glob', 'Grep', 'NotebookRead', 'Skill', 'AskUserQuestion', 'Agent', 'TodoWrite', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'ToolSearch']
 
-const LIST = `${HEADER.source}\\n${ITEM.source}`
+const SPACE = '[^\\S\\n]'
+const line = (pattern: RegExp) => pattern.source.replaceAll('^', '(?<![^\\n])').replaceAll('$', '(?![^\\n])').replaceAll('\\s', SPACE)
+const LIST = `${line(HEADER)}\\n(?:${SPACE}*(?:(?:[-*]|\\d+\\.)${SPACE}[^\\n]*)?\\n)*${line(ITEM)}`
 const ANY = '[^"”\\n]*'
 const BEFORE = '[ \\t]*(?:[^"”\\s]+[ \\t]+){0,4}[^"”\\s]*'
 const AFTER = '[^"”\\s]*(?:[ \\t]+[^"”\\s]+){0,4}[ \\t]*'
@@ -21,8 +23,8 @@ const quoting = (before: string, fragment: string, after: string) => `^[ \\t]*(?
 const regex = (name: string, pattern: string, match: 'contains' | 'not_contains') => ({ name, type: 'regex', pattern, flags: 'im', match })
 
 const graders = (entry: Entry) => [
-  regex('format', `${NONE.source}|${LIST}`, 'contains'),
-  ...((entry.mistakes ?? []).length === 0 ? [regex('clean', NONE.source, 'contains')] : []),
+  regex('format', `${line(NONE)}|${LIST}`, 'contains'),
+  ...((entry.mistakes ?? []).length === 0 ? [regex('clean', line(NONE), 'contains')] : []),
   ...(entry.mistakes ?? []).map((mistake, i) => regex(`mistake-${i + 1}-${mistake.category}`, quoting(BEFORE, mistake.match, AFTER), 'contains')),
   ...(entry.traps ?? []).map((trap, i) => regex(`trap-${i + 1}`, quoting(ANY, trap, ANY), 'not_contains')),
 ]
