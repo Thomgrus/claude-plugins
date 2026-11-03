@@ -4,7 +4,7 @@ import { test } from 'node:test'
 
 import { splitTips, stripPasted } from '../hooks/tips.ts'
 
-type Mistake = { category: string; wrong: string; fix: string; match: string }
+type Mistake = { category: string; wrong: string; fix: string; match: string; fixMatch?: string }
 type Entry = { id: string; message: string; mistakes?: Mistake[]; traps?: string[] }
 type Field = 'name' | 'pattern' | 'flags' | 'match'
 
@@ -56,6 +56,7 @@ test('every dataset entry has a generated case with one grader per mistake and t
   for (const entry of entries) {
     const names = graders(entry.id).map(found => found.name ?? '')
     assert.equal(names.filter(name => name.startsWith('mistake-')).length, (entry.mistakes ?? []).length, entry.id)
+    assert.equal(names.filter(name => name.startsWith('fix-')).length, (entry.mistakes ?? []).length, entry.id)
     assert.equal(names.filter(name => name.startsWith('trap-')).length, visibleTraps(entry).length, entry.id)
     assert.equal(names.includes('clean'), (entry.mistakes ?? []).length === 0, entry.id)
   }
@@ -111,5 +112,50 @@ test('every trap is in its message and the grader of each trap left in the promp
       assert.match(`${TIPS}- "${quoted}" → "something else" [grammar]`, pattern, entry.id)
       assert.doesNotMatch(NONE_REPLY, pattern, entry.id)
     }
+  }
+})
+
+test('a fix grader passes the dataset fix, alone or in a whole sentence', () => {
+  for (const entry of entries) {
+    for (const [i, mistake] of (entry.mistakes ?? []).entries()) {
+      const pattern = grader(entry.id, `fix-${i + 1}-${mistake.category}`)
+      for (const [wrong, fix] of [[mistake.wrong, mistake.fix], [`As I said in the call yesterday, please ${mistake.wrong} today.`, `As I said in the call yesterday, please ${mistake.fix} today.`]]) {
+        const reply = `${TIPS}- "${wrong}" → "${fix}" [${mistake.category}]`
+        assert.equal(splitTips(reply)?.tips[0]?.wrong, wrong, `${entry.id}: ${reply}`)
+        assert.doesNotMatch(reply, pattern, `${entry.id}: ${reply}`)
+      }
+    }
+  }
+})
+
+test('a fix grader fails a fix that keeps the mistake, alone or in a whole sentence', () => {
+  for (const entry of entries) {
+    for (const [i, mistake] of (entry.mistakes ?? []).entries()) {
+      const pattern = grader(entry.id, `fix-${i + 1}-${mistake.category}`)
+      for (const [wrong, fix] of [[mistake.wrong, `${mistake.wrong} now`], [`As I said in the call yesterday, please ${mistake.wrong} today.`, `As I said in the call yesterday, please ${mistake.wrong} now.`]]) {
+        const reply = `${TIPS}- "${wrong}" → "${fix}" [${mistake.category}]`
+        assert.match(reply, pattern, `${entry.id}: ${reply}`)
+      }
+    }
+  }
+})
+
+const NARROWED: Record<string, { right: string[]; wrong: string[] }> = {
+  'blocked-since': { right: ['Actually, we currently use', 'Actually we now use'], wrong: ['We actually use'] },
+  precise: { right: ['be more precise about what you mean', 'Can you be clear and precise'], wrong: ['can you precise what you mean', 'to precise it'] },
+  'control-migrations': { right: ['check that the version control is clean', 'check the access control'], wrong: ['control that it runs', 'please control that'] },
+}
+
+test('a fix grader narrowed by fixMatch passes a right fix that holds the mistake word and fails a wrong one', () => {
+  const narrowed = entries.flatMap(entry => (entry.mistakes ?? []).flatMap((mistake, i) => (mistake.fixMatch ? [{ entry, mistake, i }] : [])))
+  assert.deepEqual(narrowed.map(({ entry }) => entry.id).sort(), Object.keys(NARROWED).sort())
+  for (const { entry, mistake, i } of narrowed) {
+    const pattern = grader(entry.id, `fix-${i + 1}-${mistake.category}`)
+    const reply = (fix: string) => `${TIPS}- "${mistake.wrong}" → "${fix}" [${mistake.category}]`
+    for (const fix of NARROWED[entry.id]?.right ?? []) {
+      assert.match(fix, new RegExp(mistake.match, 'i'), `${entry.id}: ${fix}`)
+      assert.doesNotMatch(reply(fix), pattern, `${entry.id}: ${fix}`)
+    }
+    for (const fix of NARROWED[entry.id]?.wrong ?? []) assert.match(reply(fix), pattern, `${entry.id}: ${fix}`)
   }
 })
