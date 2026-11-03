@@ -29,7 +29,7 @@ Restart Claude Code. The first session asks for your native language, unless the
 ## Limitations
 
 - **Surfaces**: used in the terminal and in Claude Code Desktop. Not tested in the VS Code extension.
-- **Pasted text**: Haiku is told to ignore code and pasted or quoted text, but pasted text still counts toward the word totals. A message is cut at 8,000 characters before the check.
+- **Pasted text**: blockquotes (lines starting with `>`) and fenced code blocks are removed before the check, so Haiku never reads them and they do not count toward the word totals. A message with nothing else is not checked. Inline quotes, inline code and indented code are still sent; Haiku is told to ignore them, and they still count. What is left is cut at 8,000 characters.
 - **Parallel sessions**: turns are never lost, since each session has its own key. Two sessions that start together can both run the Sonnet review. The review checks that the progress file did not change before writing it, but that is not a lock.
 - **Pause scope**: the pause follows the folder the session starts in. A subfolder, a submodule or a symlinked path of a paused project is not paused. Other sessions already open in the project stop or restart their checks at once. Their status line catches up on their next message, and their open pane shows the change only when it is reopened or a check redraws it.
 - **Privacy**: every message you type is sent to Haiku. The store and the progress file keep excerpts of your messages in plain text.
