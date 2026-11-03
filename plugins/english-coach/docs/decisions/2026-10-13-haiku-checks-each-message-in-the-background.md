@@ -52,7 +52,7 @@ The terminal composer sends a multi-line paste wrapped in tag lines, `<pasted_co
 `stripPasted` now drops the tag lines and reads the message in one pass:
 
 - The pasted prose is kept and checked like typed text; fences and blockquotes inside a paste are removed like any other.
-- A paste ends only at the closing tag with its opening tag's id, so a tag line inside a pasted log ends nothing.
+- A paste ends only at the closing tag with its opening tag's id, so a closing tag with another id, for example one inside a pasted log, ends nothing.
 - A fence left open inside a paste ends at its closing tag, so the typed text after the paste is checked.
 - A paste that starts inside a fence the user typed is hidden with that fence, which stays open after it. If the pasted text closed that fence, the lines it let through are dropped at the closing tag.
 - An opening tag with no matching closing tag after it starts nothing; inside a typed fence it is code like the rest of the fence.
@@ -61,7 +61,8 @@ Not chosen: pairing an opening tag with the next tag line of any kind (a closing
 
 Consequences:
 
-- Tags the user types with a real paste's shape and the same id are read as a paste: an opening tag typed in a code block and a matching closing tag typed alone on a line outside it hide the typed text after them.
+- Tags the user types with a real paste's shape and the same id are read as a paste: an opening tag typed in a code block and a matching closing tag typed alone on a line outside it hide the typed text between and after them, up to the line that closes that code block.
+- A tag line with the paste's own id inside the pasted text ends that paste early, or replaces it if it is an opening tag; the rest of the paste can then reach the check and the typed text after it can be hidden.
 - A paste that starts inside a typed fence, closes it and opens a fence of its own lets the pasted prose between those two fences through to the check.
 - A tag on the same line as other text, or a renamed tag, is not recognised and counts again.
 
