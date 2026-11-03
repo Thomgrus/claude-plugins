@@ -35,11 +35,7 @@ const toTip = (match: RegExpExecArray): Tip => {
   return { wrong: match[1] ?? '', fix: match[2] ?? '', note, category }
 }
 
-export const splitTips = (text: string) => {
-  if (!/english tips/i.test(text)) return null
-  const lines = text.split(/\r?\n/)
-  const { marks, unclosed } = fenced(lines)
-  const inFence = unclosed < 0 ? marks : marks.map((mark, i) => mark && i < unclosed)
+const readTips = (lines: string[], inFence: boolean[]) => {
   const none = lines.findLastIndex((line, i) => !inFence[i] && NONE.test(line))
   if (none >= 0) {
     return { body: lines.slice(0, none).join('\n').trimEnd(), tips: [] as Tip[], tail: lines.slice(none + 1).join('\n').trim() }
@@ -64,6 +60,13 @@ export const splitTips = (text: string) => {
     tips: tips.filter(tip => tip.wrong.trim() !== tip.fix.trim()),
     tail: lines.slice(end).join('\n').trim(),
   }
+}
+
+export const splitTips = (text: string) => {
+  if (!/english tips/i.test(text)) return null
+  const lines = text.split(/\r?\n/)
+  const { marks, unclosed } = fenced(lines)
+  return readTips(lines, marks) ?? (unclosed < 0 ? null : readTips(lines, marks.map((mark, i) => mark && i < unclosed)))
 }
 
 export const stripPasted = (text: string) => {
