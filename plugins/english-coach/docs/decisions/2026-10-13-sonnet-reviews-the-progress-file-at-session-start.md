@@ -26,3 +26,14 @@ Not chosen: Haiku for the review (judging patterns across many tips is harder th
 - The file changes at most once per session start, and only after 10 new checked messages, so a level-up shows from the next session.
 - An edit made to the file while the review runs wins; that review is dropped and runs again at the next session start.
 - `REVIEW` forbids invented examples; the local runs quoted only stored tips.
+
+## Amended 2026-11-02: the cap is sized from the ask
+
+The fixed 4,000-token cap was wrong on two counts, and every review failed with `the reply hit the token cap`, so the file was never rewritten and Sonnet was called again at each session start.
+
+- The file outgrew "about 450 tokens": a real `progress.md` of 7,187 characters (French examples, arrows, quotes) comes back as about 2,800 tokens on its own.
+- `usage.output_tokens` counts thinking. At its default effort `claude-sonnet-5-5` thinks before it writes: on that file, 12 turns, the reply took 4,561 output tokens with `maxTokens` 4,000 and 4,766 with 32,000, for a whole file of 7,356 and 7,542 characters that kept every section. At `low` and `medium` effort it took 2,780 to 2,816 tokens for a whole file.
+
+`review()` now asks for `maxTokens` = 4,000 + the ask's length in characters, at most 64,000 (the engine's ceiling), and a reply is cut when `output_tokens` reaches that cap. The reply is the file rewritten from the ask, and a token holds more than one character here, so the ask's length bounds the reply; the 4,000 leave room for thinking, about 2,000 in these runs. The 4,000-token cap in the Decision above reads as this cap, and a review of this file takes about 25 seconds, not 6 to 7.3.
+
+Not chosen: `effort: 'low'` with the 4,000 cap. It halves the time (12 s instead of 25 s) and the tokens, but the file alone already takes 2,800 of the 4,000, so the next few patterns would hit the cap again; `low` and `medium` each lost a section in one of two runs, where the default effort kept them in both (small samples); and the review is the judgment this record gave Sonnet for, run in the background at most once per 10 messages, where speed does not matter. One `medium` run cut the file from 7,187 to 2,673 characters, a loss `keepsSections` does not catch. The effort stays the model's own.
