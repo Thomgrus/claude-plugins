@@ -4,10 +4,6 @@
 
 A bug a user would hit, personal data committed or sent somewhere new, or a broken Invariant. Style, naming and refactors are Nit at most.
 
-## Cap the nits
-
-Report at most five Nits per review.
-
 ## Do not report
 
 - What the Gate already checks: type errors, failing tests, plugin validation.
