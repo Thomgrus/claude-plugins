@@ -45,6 +45,27 @@ A fence opens at any indent so that a fence inside a list item is removed. The c
 
 `COACH` keeps its rule on quoted and pasted text: inline quotes, inline code and indented code still reach Haiku.
 
+## Amended 2026-11-03: the tags around a paste are removed
+
+The terminal composer sends a multi-line paste wrapped in tag lines, `<pasted_content id="…">` before it and `</pasted_content id="…">` after, with the same id on both. `stripPasted` kept them: they counted as 4 words in the turn, and Haiku read them while `COACH` tells it never to check pasted text. A one-line paste reaches the hook as typed text, with no tags.
+
+`stripPasted` now drops the tag lines and reads the message in one pass:
+
+- The pasted prose is kept and checked like typed text; fences and blockquotes inside a paste are removed like any other.
+- A paste ends only at the closing tag with its opening tag's id, so a closing tag with another id, for example one inside a pasted log, ends nothing.
+- A fence left open inside a paste ends at its closing tag, so the typed text after the paste is checked.
+- A paste that starts inside a fence the user typed is hidden with that fence, which stays open after it. If the pasted text closed that fence, the lines it let through are dropped at the closing tag.
+- An opening tag with no matching closing tag after it starts nothing; inside a typed fence it is code like the rest of the fence.
+
+Not chosen: pairing an opening tag with the next tag line of any kind (a closing tag in a pasted log ended the paste early, tags typed in two code blocks hid the prose between them, and each opening tag rescanned the message); ignoring tags inside a typed fence (a pasted fence marker then closed the typed fence, and the typed text after the paste was swallowed).
+
+Consequences:
+
+- Tags the user types with a real paste's shape and the same id are read as a paste: an opening tag typed in a code block and a matching closing tag typed alone on a line outside it hide the typed text between and after them, up to the line that closes that code block.
+- A tag line with the paste's own id inside the pasted text ends that paste early, or replaces it if it is an opening tag; the rest of the paste can then reach the check and the typed text after it can be hidden.
+- A paste that starts inside a typed fence, closes it and opens a fence of its own lets the pasted prose between those two fences through to the check.
+- A tag on the same line as other text, or a renamed tag, is not recognised and counts again.
+
 ## Amended 2026-11-03: Hide dismisses the band per surface kind
 
 In the desktop app the band could not be hidden until the next message. The terminal has its own way to hide it; the desktop app had none.
@@ -59,3 +80,19 @@ Consequences:
 
 - Two clients of the same surface kind on one session share the dismiss: Hide in one desktop window hides the band in the other.
 - A terminal attached to the same session keeps its band when a desktop client hides it.
+
+## Amended 2026-11-03: `splitTips` reads fences like `stripPasted`
+
+`splitTips` opened and closed a fence on any line starting with three backticks or tildes, by parity, while `stripPasted` follows the rule above. A reply with a four-backtick block holding a three-backtick block with an `English tips:` list in it made the count even again, and that quoted list was read as Haiku's tips. `splitTips` also split lines on `\n` only, so in a CRLF reply a tip line with a category or note after its fix ended in `\r` and was dropped. The prompt asks for a category on every tip.
+
+`splitTips` now marks each line as inside a fence or not with the same rule as `stripPasted`: opened by three or more tildes, or three or more backticks with no other backtick on the line, at any indent, and closed only by a line holding nothing but the same character at least as many times. It strips every trailing `\r` from each line first, so CRLF and doubled-CR line ends are read; the body and tail it returns are joined with `\n`.
+
+If the read at the last header outside a fence finds neither a list nor a `none` line, and the reply ends inside a fence it never closes, `splitTips` reads the reply again with that last fence counted as text, so a reply that opens a code block and never closes it before its tips still gives its tips.
+
+Not chosen: counting a fence that is never closed as text from the start. A `none` line or a list quoted in a fence left open after the real list would then replace that list.
+
+Consequences:
+
+- A list inside a fence that is never closed is read only when the last header outside a fence gives neither a list nor a `none` line; a `none` line or a list there never replaces what that header gives. An earlier list outside the fence, followed by a header with no tips, is ignored in favor of the list in the fence.
+- A fence marker with text after it (three backticks then a period) does not close the fence: the lines after it stay inside until a bare marker.
+- `stripPasted` keeps its own pass, since it also tracks the paste tags; the two share the `OPEN` and `CLOSE` patterns, not the loop.
