@@ -15,7 +15,7 @@ const TOOLS = ['Read', 'Glob', 'Grep', 'NotebookRead', 'Skill', 'AskUserQuestion
 const SPACE = '[^\\S\\n]'
 const CLASS_SPACE = '\\t\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff'
 const line = (pattern: RegExp) =>
-  pattern.source.replaceAll('^', '(?<![^\\n])').replaceAll('$', '(?![^\\n])').replaceAll('[\\s', `[${CLASS_SPACE}`).replaceAll('\\s', SPACE)
+  pattern.source.replaceAll('^', '(?<![^\\n])').replaceAll('$', '\\r*(?![^\\n])').replaceAll('[\\s', `[${CLASS_SPACE}`).replaceAll('\\s', SPACE)
 const BULLET = `${SPACE}*(?:[-*]|\\d+\\.)${SPACE}`
 const ARROW = '(?:→|->|=>)'
 const LIST = `${line(HEADER)}\\n(?:(?:${BULLET}[^\\n]*|${SPACE}*)\\n)*(?:${line(ITEM)}|${line(UNCHANGED)})`

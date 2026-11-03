@@ -6,12 +6,25 @@ const QUOTED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](
 export const ITEM = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](.+?)["”]\s*(.*)$/
 export const UNCHANGED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)[\s([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\b(?!.*["“”]).*$/i
 const BULLET = /^\s*(?:[-*]|\d+\.)\s/
-const FENCE = /^\s*(?:```|~~~)/
 const OPEN = /^\s*(`{3,}(?=[^`]*$)|~{3,})/
 const CLOSE = /^\s*(`{3,}|~{3,})\s*$/
 const PASTE = /^\s*<(\/?)pasted_content(?:\s([^>]*))?>\s*$/
 
-const outsideFence = (lines: string[], index: number) => lines.slice(0, index).filter(line => FENCE.test(line)).length % 2 === 0
+const fenced = (lines: string[]) => {
+  let fence = ''
+  let opened = -1
+  const marks = lines.map((line, i) => {
+    if (fence !== '') {
+      const close = CLOSE.exec(line)?.[1] ?? ''
+      if (close[0] === fence[0] && close.length >= fence.length) fence = ''
+      return true
+    }
+    fence = OPEN.exec(line)?.[1] ?? ''
+    if (fence !== '') opened = i
+    return fence !== ''
+  })
+  return { marks, unclosed: fence !== '' ? opened : -1 }
+}
 
 const toTip = (match: RegExpExecArray): Tip => {
   const rest = match[3] ?? ''
@@ -23,14 +36,12 @@ const toTip = (match: RegExpExecArray): Tip => {
   return { wrong: match[1] ?? '', fix: match[2] ?? '', note, category }
 }
 
-export const splitTips = (text: string) => {
-  if (!/english tips/i.test(text)) return null
-  const lines = text.split('\n')
-  const none = lines.findLastIndex((line, i) => NONE.test(line) && outsideFence(lines, i))
+const readTips = (lines: string[], inFence: boolean[]) => {
+  const none = lines.findLastIndex((line, i) => !inFence[i] && NONE.test(line))
   if (none >= 0) {
     return { body: lines.slice(0, none).join('\n').trimEnd(), tips: [] as Tip[], tail: lines.slice(none + 1).join('\n').trim() }
   }
-  const start = lines.findLastIndex((line, i) => HEADER.test(line) && outsideFence(lines, i))
+  const start = lines.findLastIndex((line, i) => !inFence[i] && HEADER.test(line))
   if (start < 0) return null
 
   const tips: Tip[] = []
@@ -50,6 +61,13 @@ export const splitTips = (text: string) => {
     tips: tips.filter(tip => tip.wrong.trim() !== tip.fix.trim()),
     tail: lines.slice(end).join('\n').trim(),
   }
+}
+
+export const splitTips = (text: string) => {
+  if (!/english tips/i.test(text)) return null
+  const lines = text.split('\n').map(line => line.replace(/\r+$/, ''))
+  const { marks, unclosed } = fenced(lines)
+  return readTips(lines, marks) ?? (unclosed < 0 ? null : readTips(lines, marks.map((mark, i) => mark && i < unclosed)))
 }
 
 export const stripPasted = (text: string) => {
