@@ -53,25 +53,32 @@ export const splitTips = (text: string) => {
 }
 
 export const stripPasted = (text: string) => {
+  const lines = text.split(/\r?\n/)
+  const tags = lines.map(line => PASTE.exec(line))
   const kept: string[] = []
   let fence = ''
-  let pasting = false
-  for (const line of text.split(/\r?\n/)) {
-    const tag = PASTE.exec(line)
-    if (tag && fence === '') {
-      pasting = tag[1] === ''
+  let outer = ''
+  let end = -1
+  for (const [i, line] of lines.entries()) {
+    if (i === end) {
+      fence = outer
+      end = -1
       continue
     }
-    if (tag && pasting && tag[1] === '/') {
-      pasting = false
-      fence = ''
+    const tag = tags[i]
+    const close = tag && end < 0 && tag[1] === '' ? tags.findIndex((next, j) => j > i && next) : -1
+    if (close > i && tags[close]?.[1] === '/') {
+      end = close
+      outer = fence
       continue
     }
+    if (end >= 0 && outer !== '') continue
     if (fence !== '') {
-      const close = CLOSE.exec(line)?.[1] ?? ''
-      if (close[0] === fence[0] && close.length >= fence.length) fence = ''
+      const shut = CLOSE.exec(line)?.[1] ?? ''
+      if (shut[0] === fence[0] && shut.length >= fence.length) fence = ''
       continue
     }
+    if (tag) continue
     const open = OPEN.exec(line)?.[1] ?? ''
     if (open !== '') fence = open
     else if (!/^\s*>/.test(line)) kept.push(line)
