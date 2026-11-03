@@ -79,6 +79,28 @@ test('splitTips reads a CRLF reply', async () => {
   expect(splitTips('Done.\r\n\r\nEnglish tips: none\r\n\r\nBye.')).toEqual({ body: 'Done.', tips: [], tail: 'Bye.' })
 })
 
+test('splitTips reads a tips list after a fence the reply never closes', async () => {
+  const split = splitTips(['Done.', '```ts', 'const a = 1', 'English tips:', '- "a" → "b" [grammar]'].join('\n'))
+  expect(split?.tips).toEqual([{ wrong: 'a', fix: 'b', note: '', category: 'grammar' }])
+})
+
+test('splitTips keeps a list over a none line or a list in a fence the reply never closes after it', async () => {
+  const list = ['Done.', 'English tips:', '- "a" → "b" [grammar]', '```']
+  expect(splitTips([...list, 'English tips: none'].join('\n'))?.tips).toEqual([{ wrong: 'a', fix: 'b', note: '', category: 'grammar' }])
+  expect(splitTips([...list, 'English tips:', '- "c" → "d"'].join('\n'))?.tips).toEqual([{ wrong: 'a', fix: 'b', note: '', category: 'grammar' }])
+})
+
+test('splitTips does not close a fence on a marker with text after it', async () => {
+  const reply = ['Done.', '```', 'x', '```.', 'English tips:', '- "a" → "b"', '```', 'English tips:', '- "c" → "d"'].join('\n')
+  expect(splitTips(reply)?.tips).toEqual([{ wrong: 'c', fix: 'd', note: '', category: '' }])
+})
+
+test('splitTips reads doubled CR line ends and a reply ending in a lone CR', async () => {
+  const tip = [{ wrong: 'a', fix: 'b', note: '', category: 'grammar' }]
+  expect(splitTips('Done.\r\r\n\r\r\nEnglish tips:\r\r\n- "a" → "b" [grammar]\r\r\n\r\r\nBye.')).toEqual({ body: 'Done.', tips: tip, tail: 'Bye.' })
+  expect(splitTips('Done.\n\nEnglish tips:\n- "a" → "b" [grammar]\r')?.tips).toEqual(tip)
+})
+
 test('splitTips drops a tip whose fix is the same sentence and keeps the others', async () => {
   const split = splitTips(
     ['English tips:', '- "Bump the version." → " Bump the version. " [none]', '- "human on the loop" → "human in the loop" [preposition]'].join('\n'),

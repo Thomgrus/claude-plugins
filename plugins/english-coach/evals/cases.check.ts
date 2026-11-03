@@ -53,7 +53,9 @@ const LF_REPLIES = [
   'Done.',
 ]
 
-const REPLIES = [...LF_REPLIES, ...LF_REPLIES.map(reply => reply.replaceAll('\n', '\r\n'))]
+const LINE_ENDS = ['\r\n', '\r\r\n']
+
+const REPLIES = [...LF_REPLIES, ...LINE_ENDS.flatMap(end => LF_REPLIES.map(reply => reply.replaceAll('\n', end)))]
 
 test('every dataset entry has a generated case with one grader per mistake and trap', () => {
   assert.deepEqual(readdirSync(new URL('cases/', root)).sort(), entries.map(entry => entry.id).sort())
