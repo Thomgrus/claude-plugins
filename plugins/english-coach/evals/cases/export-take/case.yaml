@@ -32,6 +32,6 @@ graders:
     match: "contains"
   - name: "mistake-1-verb-form"
     type: "regex"
-    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][^\"”\\n]*(?:export take\\b)[^\"”\\n]*[\"”][ \\t]*(?:→|->|=>)"
+    pattern: "^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*[\"“][ \\t]*(?:[^\"”\\s]+[ \\t]+){0,4}[^\"”\\s]*(?:export take\\b)[^\"”\\s]*(?:[ \\t]+[^\"”\\s]+){0,4}[ \\t]*[\"”][ \\t]*(?:→|->|=>)"
     flags: "im"
     match: "contains"
