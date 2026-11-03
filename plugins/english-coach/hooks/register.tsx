@@ -4,7 +4,7 @@ import type { EngineInterface, Register } from 'claude-code'
 import type { Monthly, Tip, Turn } from '../types'
 import { add, barChart, byDay, byMonth, day, merge, monthly, rawFrom, recent, row, table, totalsRow, ZERO } from './kpi'
 import { ask, COACH, keepsSections, levelOf, PROGRESS_PATH, REVIEW, REVIEW_AFTER, reviewAsk, TEMPLATE, unwrap } from './rule'
-import { cheer, countWords, splitTips } from './tips'
+import { cheer, countWords, splitTips, stripPasted } from './tips'
 
 const PANE = 'english'
 const COUNTED = ['composer', 'bridge']
@@ -167,11 +167,15 @@ export const register: Register = (on, options) => {
       const paused = await isPaused($)
       $.ui.status(paused ? PAUSED_STATUS : undefined)
       if (paused) return
+      const text = stripPasted(e.text).slice(0, CUT).replace(/[\uD800-\uDBFF]$/, '')
+      if (countWords(text) === 0) {
+        await update($, check, () => null)
+        return
+      }
       const path = await progressPath($)
       if (!(await $.fs.exists(path))) await $.fs.write(path, TEMPLATE)
       const progress = await $.fs.read(path)
       const [id, session] = await Promise.all([$.clock.now(), $.session.id()])
-      const text = e.text.slice(0, CUT).replace(/[\uD800-\uDBFF]$/, '')
       await update($, check, () => ({ id, tips: null }))
       $.clock.after(0, () =>
         coach($, id, session, progress, native, text).catch(async error => {

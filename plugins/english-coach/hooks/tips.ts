@@ -4,8 +4,11 @@ export const HEADER = /^\s*(?:#+\s*)?(?:\*\*)?English tips:?(?:\*\*)?:?\s*$/i
 export const NONE = /^\s*(?:#+\s*)?[`*]*English tips:?[`*]*:?\s*[`*(]*none\b[).`*]*(?:\s*$|\s+[—–-])/i
 const QUOTED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](.+?)["”](?=\s*(?:\[|$|[—–(-]))\s*(.*)$/
 export const ITEM = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)\s*["“](.+?)["”]\s*(.*)$/
+export const UNCHANGED = /^\s*(?:[-*]|\d+\.)\s*["“](.+?)["”]\s*(?:→|->|=>)[\s([]*(?:none|no (?:big )?mistake|no tip|no change|fine|correct|ok)\b(?!.*["“”]).*$/i
 const BULLET = /^\s*(?:[-*]|\d+\.)\s/
 const FENCE = /^\s*(?:```|~~~)/
+const OPEN = /^\s*(`{3,}(?=[^`]*$)|~{3,})/
+const CLOSE = /^\s*(`{3,}|~{3,})\s*$/
 
 const outsideFence = (lines: string[], index: number) => lines.slice(0, index).filter(line => FENCE.test(line)).length % 2 === 0
 
@@ -33,7 +36,9 @@ export const splitTips = (text: string) => {
   let end = start + 1
   for (const line of lines.slice(start + 1)) {
     const match = QUOTED.exec(line) ?? ITEM.exec(line)
+    const unchanged = match ? null : UNCHANGED.exec(line)
     if (match) tips.push(toTip(match))
+    else if (unchanged) tips.push({ wrong: unchanged[1] ?? '', fix: unchanged[1] ?? '', note: '', category: '' })
     else if (!BULLET.test(line) && (line.trim() !== '' || tips.length > 0)) break
     end++
   }
@@ -41,9 +46,28 @@ export const splitTips = (text: string) => {
 
   return {
     body: lines.slice(0, start).join('\n').trimEnd(),
-    tips,
+    tips: tips.filter(tip => tip.wrong.trim() !== tip.fix.trim()),
     tail: lines.slice(end).join('\n').trim(),
   }
+}
+
+export const stripPasted = (text: string) => {
+  const kept: string[] = []
+  let fence = ''
+  for (const line of text.split(/\r?\n/)) {
+    if (fence !== '') {
+      const close = CLOSE.exec(line)?.[1] ?? ''
+      if (close[0] === fence[0] && close.length >= fence.length) fence = ''
+      continue
+    }
+    const open = OPEN.exec(line)?.[1] ?? ''
+    if (open !== '') fence = open
+    else if (!/^\s*>/.test(line)) kept.push(line)
+  }
+  return kept
+    .join('\n')
+    .replace(/\n(?:[ \t]*\n){2,}/g, '\n\n')
+    .trim()
 }
 
 export const countWords = (text: string) =>
@@ -52,7 +76,7 @@ export const countWords = (text: string) =>
     .replace(/`[^`]*`/g, ' ')
     .replace(/https?:\/\/\S+/g, ' ')
     .split(/\s+/)
-    .filter(word => /[a-z]/i.test(word)).length
+    .filter(word => /\p{L}/u.test(word)).length
 
 const CHEERS = ['Nice work!', 'Well written!', 'Spot on!', 'Keep it up!', 'Clean and clear!', 'Great English!']
 

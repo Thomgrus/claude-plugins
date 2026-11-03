@@ -37,3 +37,17 @@ Not chosen:
 - A tip that quotes a whole sentence around the mistake fails its `mistake` grader. The cap keeps a tip on the phrase at fault, and a reply that quotes the whole sentence scores lower than it reads.
 - The first run with these graders passed 34 of 114 runs (38 cases, 3 runs each). The score is a baseline to compare against, not a target.
 - Results land in `evals/results/`, which git ignores.
+
+## Amended 2026-11-03: the cases send the stripped message and the graders read like `splitTips()`
+
+`generate.ts` also imports `stripPasted` and `UNCHANGED` from `hooks/tips.ts`:
+
+- Each case sends `stripPasted(message)`, what the plugin sends. A trap that `stripPasted` removes never reaches Haiku, so it gets no grader. `cases.check.ts` still checks that every trap is in its message.
+- `clean` passes on a `none` line, or on a list whose readable bullets all repeat their quote or give a no-change word as their fix, which `splitTips()` reads as clean.
+- A `mistake` grader rejects a tip whose fix repeats the quote or starts with a no-change word, since `splitTips()` reads neither as a tip. The no-change words are cut from the source of `UNCHANGED` at its first `)\b`; `cases.check.ts` fails if a mistake grader passes a no-change bullet.
+
+Consequences:
+
+- Regenerate the cases after any change to `stripPasted` or `UNCHANGED` too.
+- The graders are still looser than `splitTips()` on an unquoted fix that is not a no-change word: `→ looks good`, `→ unchanged` or `→ okay` passes a `mistake` grader, while `splitTips()` reads no tip: it skips that bullet, and a reply with no other tip line counts as unreadable, so the plugin logs a failed check and stores no turn.
+- A run on 3 November 2026 passed 78 of 114 runs, against 34 of 114 for the first run. Four of the seven trap graders are gone, since `stripPasted` removes their text, so the trap scores of the two runs are not comparable.

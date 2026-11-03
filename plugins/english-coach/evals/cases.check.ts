@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { readdirSync, readFileSync } from 'node:fs'
 import { test } from 'node:test'
 
-import { splitTips } from '../hooks/tips.ts'
+import { splitTips, stripPasted } from '../hooks/tips.ts'
 
 type Mistake = { category: string; wrong: string; fix: string; match: string }
 type Entry = { id: string; message: string; mistakes?: Mistake[]; traps?: string[] }
@@ -10,6 +10,8 @@ type Field = 'name' | 'pattern' | 'flags' | 'match'
 
 const root = new URL('./', import.meta.url)
 const entries: Entry[] = JSON.parse(readFileSync(new URL('dataset.json', root), 'utf8'))
+
+const visibleTraps = (entry: Entry) => (entry.traps ?? []).filter(trap => new RegExp(trap, 'i').test(stripPasted(entry.message)))
 
 const graders = (id: string) => {
   const found: Partial<Record<Field, string>>[] = []
@@ -40,6 +42,8 @@ const REPLIES = [
   'Done.\n\n## English tips\n\n1. "a" -> "b"',
   `${TIPS}- "a" → write it in English\n- "c" → "d" [grammar]`,
   `${TIPS}- "a whole sentence that is fine." → none`,
+  `${TIPS}- "a whole sentence that is fine." → fine, no tip\n- "c" → "d" [grammar]`,
+  `${TIPS}- "a whole sentence that is fine." → (no mistake)`,
   `${TIPS}Nothing to fix.`,
   `${TIPS}See below.\n- "a" → "b"`,
   'Done. English tips: none',
@@ -52,7 +56,7 @@ test('every dataset entry has a generated case with one grader per mistake and t
   for (const entry of entries) {
     const names = graders(entry.id).map(found => found.name ?? '')
     assert.equal(names.filter(name => name.startsWith('mistake-')).length, (entry.mistakes ?? []).length, entry.id)
-    assert.equal(names.filter(name => name.startsWith('trap-')).length, (entry.traps ?? []).length, entry.id)
+    assert.equal(names.filter(name => name.startsWith('trap-')).length, visibleTraps(entry).length, entry.id)
     assert.equal(names.includes('clean'), (entry.mistakes ?? []).length === 0, entry.id)
   }
 })
@@ -84,10 +88,24 @@ test('every mistake is in its message and its grader matches only a tip on it', 
   }
 })
 
-test('every trap is in its message and its grader catches a tip on it', () => {
+test('a mistake grader never matches a no-change bullet on its mistake', () => {
   for (const entry of entries) {
-    for (const [i, trap] of (entry.traps ?? []).entries()) {
-      const quoted = new RegExp(trap, 'i').exec(entry.message)?.[0]
+    for (const [i, mistake] of (entry.mistakes ?? []).entries()) {
+      const pattern = grader(entry.id, `mistake-${i + 1}-${mistake.category}`)
+      for (const fix of ['none', 'no big mistake', '(no mistake)', 'fine, no tip', `"${mistake.wrong}" [none]`]) {
+        const reply = `${TIPS}- "${mistake.wrong}" → ${fix}`
+        assert.equal(splitTips(reply)?.tips.length ?? 0, 0, `${entry.id}: ${reply}`)
+        assert.doesNotMatch(reply, pattern, `${entry.id}: ${reply}`)
+      }
+    }
+  }
+})
+
+test('every trap is in its message and the grader of each trap left in the prompt catches a tip on it', () => {
+  for (const entry of entries) {
+    for (const trap of entry.traps ?? []) assert.match(entry.message, new RegExp(trap, 'i'), entry.id)
+    for (const [i, trap] of visibleTraps(entry).entries()) {
+      const quoted = new RegExp(trap, 'i').exec(stripPasted(entry.message))?.[0]
       assert.ok(quoted, `${entry.id}: ${trap}`)
       const pattern = grader(entry.id, `trap-${i + 1}`)
       assert.match(`${TIPS}- "${quoted}" → "something else" [grammar]`, pattern, entry.id)
