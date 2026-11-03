@@ -4,12 +4,13 @@
   "type": "module",
   "scripts": {
     "types": "claude --plugin-dir . -p ok --model haiku --max-turns 1 > /dev/null",
-    "typecheck": "tsc -p .",
-    "test": "claude plugin test .",
+    "typecheck": "tsc -p . && tsc -p evals",
+    "test": "claude plugin test . && node --test evals/cases.check.ts",
     "build": "claude plugin validate .",
     "evals:generate": "node evals/generate.ts"
   },
   "devDependencies": {
+    "@types/node": "^24.19.2",
     "typescript": "^5.9.0"
   }
 }

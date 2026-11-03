@@ -3,7 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ask, COACH, TEMPLATE } from '../hooks/rule.ts'
-import { stripPasted } from '../hooks/tips.ts'
+import { HEADER, ITEM, NONE, stripPasted } from '../hooks/tips.ts'
 
 type Mistake = { category: string; wrong: string; fix: string; match: string }
 type Entry = { id: string; message: string; mistakes?: Mistake[]; traps?: string[] }
@@ -12,17 +12,21 @@ const NATIVE = 'French'
 
 const TOOLS = ['Read', 'Glob', 'Grep', 'NotebookRead', 'Skill', 'AskUserQuestion', 'Agent', 'TodoWrite', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'ToolSearch']
 
-const NONE = '^[ \\t]*(?:#+[ \\t]*)?[`*]*English tips:?[`*]*:?[ \\t]*[`*(]*none\\b'
-const LIST = '^[ \\t]*(?:#+[ \\t]*)?(?:\\*\\*)?English tips:?(?:\\*\\*)?:?[ \\t]*\\n(?:[ \\t]*\\n)*[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“][^\\n]+?["”][ \\t]*(?:→|->|=>)[ \\t]*["“][^\\n]+?["”]'
-const tipOn = (fragment: string) => `^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“][^"”\\n]*(?:${fragment})[^"”\\n]*["”][ \\t]*(?:→|->|=>)`
+const SPACE = '[^\\S\\n]'
+const line = (pattern: RegExp) => pattern.source.replaceAll('^', '(?<![^\\n])').replaceAll('$', '(?![^\\n])').replaceAll('\\s', SPACE)
+const LIST = `${line(HEADER)}\\n(?:${SPACE}*(?:(?:[-*]|\\d+\\.)${SPACE}[^\\n]*)?\\n)*${line(ITEM)}`
+const ANY = '[^"”\\n]*'
+const BEFORE = '[ \\t]*(?:[^"”\\s]+[ \\t]+){0,4}[^"”\\s]*'
+const AFTER = '[^"”\\s]*(?:[ \\t]+[^"”\\s]+){0,4}[ \\t]*'
+const quoting = (before: string, fragment: string, after: string) => `^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“]${before}(?:${fragment})${after}["”][ \\t]*(?:→|->|=>)`
 
 const regex = (name: string, pattern: string, match: 'contains' | 'not_contains') => ({ name, type: 'regex', pattern, flags: 'im', match })
 
 const graders = (entry: Entry) => [
-  regex('format', `${NONE}|${LIST}`, 'contains'),
-  ...((entry.mistakes ?? []).length === 0 ? [regex('clean', NONE, 'contains')] : []),
-  ...(entry.mistakes ?? []).map((mistake, i) => regex(`mistake-${i + 1}-${mistake.category}`, tipOn(mistake.match), 'contains')),
-  ...(entry.traps ?? []).map((trap, i) => regex(`trap-${i + 1}`, tipOn(trap), 'not_contains')),
+  regex('format', `${line(NONE)}|${LIST}`, 'contains'),
+  ...((entry.mistakes ?? []).length === 0 ? [regex('clean', line(NONE), 'contains')] : []),
+  ...(entry.mistakes ?? []).map((mistake, i) => regex(`mistake-${i + 1}-${mistake.category}`, quoting(BEFORE, mistake.match, AFTER), 'contains')),
+  ...(entry.traps ?? []).map((trap, i) => regex(`trap-${i + 1}`, quoting(ANY, trap, ANY), 'not_contains')),
 ]
 
 const yaml = (value: unknown, indent = ''): string => {
