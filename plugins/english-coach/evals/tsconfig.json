@@ -12,5 +12,5 @@
     "erasableSyntaxOnly": true,
     "types": ["node"]
   },
-  "include": ["generate.ts"]
+  "include": ["generate.ts", "cases.check.ts"]
 }

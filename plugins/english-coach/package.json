@@ -5,7 +5,7 @@
   "scripts": {
     "types": "claude --plugin-dir . -p ok --model haiku --max-turns 1 > /dev/null",
     "typecheck": "tsc -p . && tsc -p evals",
-    "test": "claude plugin test .",
+    "test": "claude plugin test . && node --test evals/cases.check.ts",
     "build": "claude plugin validate .",
     "evals:generate": "node evals/generate.ts"
   },
