@@ -131,6 +131,8 @@ test('stripPasted hides a paste inside a typed fence and keeps that fence open a
   const text = ['here is the log:', '```', '<pasted_content id="1">', 'Error who crash', '</pasted_content id="1">', '```', 'why it crash?'].join('\n')
   expect(stripPasted(text)).toBe('here is the log:\nwhy it crash?')
   expect(stripPasted(['see:', '```', '<pasted_content id="1">', 'trace', '</pasted_content id="1">', 'still code'].join('\n'))).toBe('see:')
+  const closed = ['typed', '```', '<pasted_content id="1">', 'a', '```', 'pasted prose', '</pasted_content id="1">', '```', 'after'].join('\n')
+  expect(stripPasted(closed)).toBe('typed\nafter')
 })
 
 test('stripPasted keeps the typed text between paste tags the user typed in two code blocks', async () => {
