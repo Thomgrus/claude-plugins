@@ -20,8 +20,10 @@ const BULLET = `${SPACE}*(?:[-*]|\\d+\\.)${SPACE}`
 const ARROW = '(?:→|->|=>)'
 const LIST = `${line(HEADER)}\\n(?:(?:${BULLET}[^\\n]*|${SPACE}*)\\n)*(?:${line(ITEM)}|${line(UNCHANGED)})`
 const OTHER = `(?!${line(ITEM)})(?!${line(UNCHANGED)})${BULLET}[^\\n]*`
+const TAIL = `(?=${SPACE}*(?:\\[|(?![^\\n])|[—–(-]))`
+const SAME_FIX = (name: string) => `${SPACE}*["“]${SPACE}*(?-i:\\k<${name}>)${SPACE}*["”](?:${TAIL}|(?![^\\n]*["”]${TAIL}))`
 const KEPT = (name: string) =>
-  `(?:(?=${line(ITEM)})${SPACE}*(?:[-*]|\\d+\\.)${SPACE}*["“]${SPACE}*(?<${name}>[^\\n]+?)${SPACE}*["”]${SPACE}*${ARROW}${SPACE}*["“]${SPACE}*(?-i:\\k<${name}>)${SPACE}*["”][^\\n]*|(?!${line(ITEM)})${line(UNCHANGED)}[^\\n]*)`
+  `(?:${SPACE}*(?:[-*]|\\d+\\.)${SPACE}*["“]${SPACE}*(?<${name}>[^\\n]+?)${SPACE}*["”]${SPACE}*${ARROW}${SAME_FIX(name)}[^\\n]*|(?!${line(ITEM)})${line(UNCHANGED)}[^\\n]*)`
 const CLEAN = `${line(NONE)}|${line(HEADER)}(?:\\n(?:${SPACE}*|${OTHER}))*\\n${KEPT('first')}(?:\\n(?:${KEPT('next')}|${OTHER}))*(?![^\\n])(?!\\n${BULLET})`
 const UNCHANGED_FIX = UNCHANGED.source.slice(UNCHANGED.source.indexOf(ARROW) + ARROW.length).replaceAll('[\\s', '[ \\t').replaceAll('\\s', '[ \\t]')
 const ANY_BEFORE = '(?:[^"”\\s][^"”\\n]*)?'
@@ -29,7 +31,7 @@ const ANY_AFTER = '(?:[^"”\\n]*[^"”\\s])?'
 const BEFORE = '(?:[^"”\\s]+[ \\t]+){0,4}[^"”\\s]*'
 const AFTER = '[^"”\\s]*(?:[ \\t]+[^"”\\s]+){0,4}'
 const quoting = (before: string, fragment: string, after: string) =>
-  `^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“][ \\t]*(?<quote>${before}(?:${fragment})${after})[ \\t]*["”][ \\t]*${ARROW}(?![ \\t]*["“][ \\t]*(?-i:\\k<quote>)[ \\t]*["”])(?!${UNCHANGED_FIX})`
+  `^[ \\t]*(?:[-*]|\\d+\\.)[ \\t]*["“][ \\t]*(?<quote>${before}(?:${fragment})${after})[ \\t]*["”][ \\t]*${ARROW}(?!${SAME_FIX('quote')})(?!${UNCHANGED_FIX})`
 
 const regex = (name: string, pattern: string, match: 'contains' | 'not_contains') => ({ name, type: 'regex', pattern, flags: 'im', match })
 
