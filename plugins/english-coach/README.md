@@ -4,6 +4,7 @@ A Claude Code plugin for people who practise English while they work with Claude
 
 - Each message you send is checked by Haiku, and the tips show in a frame above the prompt, while Claude is still working.
 - Each tip has a category. A clean message gets a short "No English findings" card.
+- Outside the terminal (desktop app, mobile, VS Code), **Hide** on the card dismisses it on that surface until your next message. It is not a pause: the next message is checked as usual. Two windows of the same surface on one session share the dismiss.
 - `/english` opens a pane with your progress across all sessions: findings per turn, errors per 100 words, clean turns and words, a chart of the last 30 turns, a by-day table, a by-month table and the recent turns. It opens even while Claude is still working.
 - A progress file tracks your recurring mistakes and your tip level. Sonnet reviews it from your tips when a session starts.
 - `/english pause` stops the checks in the current project, for a demo or when you write in another language on purpose, and `/english resume` starts them again. The status line and the pane say when the coach is paused.
