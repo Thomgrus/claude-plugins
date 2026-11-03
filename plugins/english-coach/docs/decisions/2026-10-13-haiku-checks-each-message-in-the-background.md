@@ -80,3 +80,19 @@ Consequences:
 
 - Two clients of the same surface kind on one session share the dismiss: Hide in one desktop window hides the band in the other.
 - A terminal attached to the same session keeps its band when a desktop client hides it.
+
+## Amended 2026-11-03: `splitTips` reads fences like `stripPasted`
+
+`splitTips` opened and closed a fence on any line starting with three backticks or tildes, by parity, while `stripPasted` follows the rule above. A reply with a four-backtick block holding a three-backtick block with an `English tips:` list in it made the count even again, and that quoted list was read as Haiku's tips. `splitTips` also split lines on `\n` only, so in a CRLF reply a tip line with a category or note after its fix ended in `\r` and was dropped. The prompt asks for a category on every tip.
+
+`splitTips` now marks each line as inside a fence or not with the same rule as `stripPasted`: opened by three or more tildes, or three or more backticks with no other backtick on the line, at any indent, and closed only by a line holding nothing but the same character at least as many times. It strips every trailing `\r` from each line first, so CRLF and doubled-CR line ends are read; the body and tail it returns are joined with `\n`.
+
+If the read at the last header outside a fence finds neither a list nor a `none` line, and the reply ends inside a fence it never closes, `splitTips` reads the reply again with that last fence counted as text, so a reply that opens a code block and never closes it before its tips still gives its tips.
+
+Not chosen: counting a fence that is never closed as text from the start. A `none` line or a list quoted in a fence left open after the real list would then replace that list.
+
+Consequences:
+
+- A list inside a fence that is never closed is read only when the last header outside a fence gives neither a list nor a `none` line; a `none` line or a list there never replaces what that header gives. An earlier list outside the fence, followed by a header with no tips, is ignored in favor of the list in the fence.
+- A fence marker with text after it (three backticks then a period) does not close the fence: the lines after it stay inside until a bare marker.
+- `stripPasted` keeps its own pass, since it also tracks the paste tags; the two share the `OPEN` and `CLOSE` patterns, not the loop.

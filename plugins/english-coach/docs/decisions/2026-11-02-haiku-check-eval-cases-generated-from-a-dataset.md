@@ -51,3 +51,9 @@ Consequences:
 - Regenerate the cases after any change to `stripPasted` or `UNCHANGED` too.
 - The graders are still looser than `splitTips()` on an unquoted fix that is not a no-change word: `→ looks good`, `→ unchanged` or `→ okay` passes a `mistake` grader, while `splitTips()` reads no tip: it skips that bullet, and a reply with no other tip line counts as unreadable, so the plugin logs a failed check and stores no turn.
 - A run on 3 November 2026 passed 78 of 114 runs, against 34 of 114 for the first run. Four of the seven trap graders are gone, since `stripPasted` removes their text, so the trap scores of the two runs are not comparable.
+
+## Amended 2026-11-03: the graders end a line on any run of CRs
+
+`splitTips()` now strips every trailing `\r` from a reply line, so it reads CRLF and doubled-CR replies. `line()` in `generate.ts` ends a line on `\r*` to match, and `cases.check.ts` checks the `format` and `clean` graders against LF, CRLF and doubled-CR copies of each sample reply.
+
+The graders still do not model fences: a list inside a code fence can pass a grader that `splitTips()` ignores.
