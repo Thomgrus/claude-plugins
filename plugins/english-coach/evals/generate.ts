@@ -12,7 +12,7 @@ const NATIVE = 'French'
 
 const TOOLS = ['Read', 'Glob', 'Grep', 'NotebookRead', 'Skill', 'AskUserQuestion', 'Agent', 'TodoWrite', 'TaskCreate', 'TaskGet', 'TaskList', 'TaskUpdate', 'TaskStop', 'ToolSearch']
 
-const SPACE = '[^\\S\\r\\n]'
+const SPACE = '(?:[^\\S\\r\\n]|\\r(?=[^\\n]))'
 const BLANK = `${SPACE}*\\r?`
 const CLASS_SPACE = '\\t\\v\\f\\r \\u00a0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000\\ufeff'
 const line = (pattern: RegExp) =>
