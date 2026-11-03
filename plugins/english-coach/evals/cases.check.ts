@@ -119,7 +119,7 @@ test('a fix grader passes the dataset fix, alone or in a whole sentence', () => 
   for (const entry of entries) {
     for (const [i, mistake] of (entry.mistakes ?? []).entries()) {
       const pattern = grader(entry.id, `fix-${i + 1}-${mistake.category}`)
-      for (const [wrong, fix] of [[mistake.wrong, mistake.fix], [`As I said in the call yesterday, please ${mistake.wrong} today.`, `As I said in the call yesterday, please ${mistake.fix} today.`]]) {
+      for (const [wrong, fix] of [[mistake.wrong, mistake.fix], [`As I said in the call yesterday, ${mistake.wrong} today.`, `As I said in the call yesterday, ${mistake.fix} today.`]]) {
         const reply = `${TIPS}- "${wrong}" → "${fix}" [${mistake.category}]`
         assert.equal(splitTips(reply)?.tips[0]?.wrong, wrong, `${entry.id}: ${reply}`)
         assert.doesNotMatch(reply, pattern, `${entry.id}: ${reply}`)
@@ -128,11 +128,14 @@ test('a fix grader passes the dataset fix, alone or in a whole sentence', () => 
   }
 })
 
+const LISTED_CONTEXT_ONLY = ['precise']
+
 test('a fix grader fails a fix that keeps the mistake, alone or in a whole sentence', () => {
   for (const entry of entries) {
     for (const [i, mistake] of (entry.mistakes ?? []).entries()) {
       const pattern = grader(entry.id, `fix-${i + 1}-${mistake.category}`)
-      for (const [wrong, fix] of [[mistake.wrong, `${mistake.wrong} now`], [`As I said in the call yesterday, please ${mistake.wrong} today.`, `As I said in the call yesterday, please ${mistake.wrong} now.`]]) {
+      const sentence = LISTED_CONTEXT_ONLY.includes(entry.id) ? 'As I said in the call yesterday, can you' : 'As I said in the call yesterday,'
+      for (const [wrong, fix] of [[mistake.wrong, `${mistake.wrong} now`], [`${sentence} ${mistake.wrong} today.`, `${sentence} ${mistake.wrong} now.`]]) {
         const reply = `${TIPS}- "${wrong}" → "${fix}" [${mistake.category}]`
         assert.match(reply, pattern, `${entry.id}: ${reply}`)
       }
