@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ask, COACH, TEMPLATE } from '../hooks/rule.ts'
+import { stripPasted } from '../hooks/tips.ts'
 
 type Mistake = { category: string; wrong: string; fix: string; match: string }
 type Entry = { id: string; message: string; mistakes?: Mistake[]; traps?: string[] }
@@ -47,7 +48,7 @@ const caseFile = (entry: Entry) => {
       max_turns: 1,
       disallowed_tools: TOOLS,
       append_system_prompt: COACH,
-      prompt: ask(TEMPLATE, NATIVE, entry.message),
+      prompt: ask(TEMPLATE, NATIVE, stripPasted(entry.message)),
     },
     graders: graders(entry),
   }).trimStart()}\n`
