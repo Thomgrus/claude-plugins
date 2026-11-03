@@ -286,7 +286,8 @@ function overview({ ui, all, mine, total }: Pane) {
 }
 
 function tipsView({ ui: { Box, Text }, all, mine, now }: Pane) {
-  const latest = all.slice(-8).reverse()
+  const shown = all.slice(-8).reverse()
+  const latest = [...shown.filter(turn => mine.includes(turn)), ...shown.filter(turn => !mine.includes(turn))]
   const boundary = latest.findIndex(turn => !mine.includes(turn))
   const told = new Set<string>()
   const items: RenderNode[] = []
@@ -321,9 +322,9 @@ function tipsView({ ui: { Box, Text }, all, mine, now }: Pane) {
     )
   }
   for (const [i, turn] of latest.entries()) {
-    if (i === boundary && i > 0) {
+    if (i === boundary) {
       flush()
-      items.push(<Text dimColor>Earlier sessions</Text>)
+      items.push(<Text dimColor>Other sessions</Text>)
     }
     if (turn.tips.length === 0) {
       clean += 1
