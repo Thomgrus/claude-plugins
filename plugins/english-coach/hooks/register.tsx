@@ -44,6 +44,7 @@ const PAUSED_STATUS = 'English coach paused in this project · /english resume'
 const PAUSED_HINT = '**Paused in this project.** Your messages here are not checked or counted. Run `/english resume` to start again.'
 const PAUSED_NOTE = 'Your messages here are not checked or counted. Run /english resume to start again.'
 const NATIVE_NOTE = 'Set english-coach.nativeLanguage in /config: the coach then looks for the calques and false friends your native language brings.'
+const ROLLED_NOTE = 'No recent turns: older months keep totals only, see History.'
 const LEVELS = ['', 'Basics', 'Natural phrasing', 'Nuance']
 const VIEWS = [
   ['overview', 'Overview', 'o'],
@@ -193,8 +194,8 @@ type Pane = { ui: ReturnType<EngineInterface['ui']['resolve']>; all: Turn[]; min
 
 const plural = (n: number, word: string) => `${n.toLocaleString('en-US')} ${word}${n === 1 ? '' : 's'}`
 
-function strip({ ui: { Box, Text }, all, mine }: Pane, status: (string | false)[]) {
-  const level = all.at(-1)?.level ?? 0
+function strip({ ui: { Box, Text }, all, mine, months, total }: Pane, status: (string | false)[]) {
+  const level = all.at(-1)?.level ?? Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).at(-1)?.[1].level ?? 0
   const session = totalsOf(mine)
   const note = (title: string, text: string) => (
     <Box flexDirection="row" flexWrap="wrap" columnGap={1}>
@@ -215,7 +216,7 @@ function strip({ ui: { Box, Text }, all, mine }: Pane, status: (string | false)[
         ) : (
           <Text dimColor>No turns yet</Text>
         )}
-        {all.length > 0 && (
+        {total.turns > 0 && (
           <Box flexDirection="row" gap={1}>
             <Text dimColor>This session</Text>
             <Text>{`${plural(session.turns, 'turn')}, ${plural(session.findings, 'finding')}`}</Text>
@@ -270,6 +271,7 @@ function overview({ ui, all, mine, total }: Pane) {
         {tile('Clean turns', ours.clean, theirs.clean)}
         {tile('Words', session.words.toLocaleString('en-US'), total.words.toLocaleString('en-US'))}
       </Box>
+      {all.length === 0 && <Text dimColor>{ROLLED_NOTE}</Text>}
       {all.length > 0 && (
         <Box flexDirection="column">
           <Text bold>Last 30 turns</Text>
@@ -345,7 +347,8 @@ function tipsView({ ui: { Box, Text }, all, mine, now }: Pane) {
         <Text bold>Recent tips</Text>
         <Text dimColor>last 8 turns</Text>
       </Box>
-      {latest.every(turn => turn.tips.length === 0) && <Text dimColor>No tips in the last 8 turns.</Text>}
+      {latest.length === 0 && <Text dimColor>{ROLLED_NOTE}</Text>}
+      {latest.length > 0 && latest.every(turn => turn.tips.length === 0) && <Text dimColor>No tips in the last 8 turns.</Text>}
       {items}
       {first !== undefined && counts.length > 0 && (
         <Box flexDirection="column">
