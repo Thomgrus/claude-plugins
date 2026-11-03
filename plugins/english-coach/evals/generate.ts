@@ -33,11 +33,13 @@ const quoting = (before: string, fragment: string, after: string) =>
 
 const regex = (name: string, pattern: string, match: 'contains' | 'not_contains') => ({ name, type: 'regex', pattern, flags: 'im', match })
 
+const visibleTraps = (entry: Entry) => (entry.traps ?? []).filter(trap => new RegExp(trap, 'i').test(stripPasted(entry.message)))
+
 const graders = (entry: Entry) => [
   regex('format', `${line(NONE)}|${LIST}`, 'contains'),
   ...((entry.mistakes ?? []).length === 0 ? [regex('clean', CLEAN, 'contains')] : []),
   ...(entry.mistakes ?? []).map((mistake, i) => regex(`mistake-${i + 1}-${mistake.category}`, quoting(BEFORE, mistake.match, AFTER), 'contains')),
-  ...(entry.traps ?? []).map((trap, i) => regex(`trap-${i + 1}`, quoting(ANY_BEFORE, trap, ANY_AFTER), 'not_contains')),
+  ...visibleTraps(entry).map((trap, i) => regex(`trap-${i + 1}`, quoting(ANY_BEFORE, trap, ANY_AFTER), 'not_contains')),
 ]
 
 const yaml = (value: unknown, indent = ''): string => {
