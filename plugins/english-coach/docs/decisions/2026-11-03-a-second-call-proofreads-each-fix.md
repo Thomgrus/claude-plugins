@@ -27,6 +27,6 @@ Also not chosen:
 
 ## Consequences
 
-- At its best setting the second call drops about 7% of right tips to catch at most 3% of wrong ones, and it adds a model call to every checked message.
+- At its best setting the second call drops about 7% of right tips to catch wrong fixes that are at most 3% of tips, and it adds a model call to every checked message.
 - Wrong fixes are caught in the evals instead, by the `fix` graders of [the eval cases](2026-11-02-haiku-check-eval-cases-generated-from-a-dataset.md).
 - Reopen this if the wrong-fix rate in the evals rises, or if a check drops well under 1% of right tips.

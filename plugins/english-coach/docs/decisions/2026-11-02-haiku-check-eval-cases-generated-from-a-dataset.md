@@ -65,5 +65,5 @@ A production guard was measured and rejected: [a second call proofreads each fix
 Consequences:
 
 - A wrong fix is caught by the evals, not shown less often to the user.
-- A `fixMatch` lists the words around the mistake it looks for. A wrong fix in a context it does not list, such as "Can you also precise what…" or "do the control that…", passes. Each attempt to widen the lists also failed right fixes.
-- A run on 3 November 2026 with the fix graders passed 77 of 114 runs; the fix graders passed 100 of 102. Both failures were real: Haiku kept the false friend, `"Actually we use" → "Actually, we use"`.
+- A `fixMatch` lists the words around the mistake it looks for, so it misses both ways. A wrong fix in a context it does not list passes: "Can you also precise what…", "Thanks. Precise what you mean" or "do the control that…". A right fix in a context it does not list fails, such as "make sure we have control over it". Each attempt to widen the lists also failed right fixes. `cases.check.ts` names `precise` as the mistake checked only in a listed context.
+- A run on 3 November 2026 with the fix graders passed 77 of 114 runs; the fix graders passed 100 of 102. Both failures were real: Haiku kept the false friend, `"Actually we use" → "Actually, we use"`. A second run of that case alone kept "Actually" in all 4 runs, so this is how Haiku answers, not a rare slip.
