@@ -137,7 +137,7 @@ async function review($: Pick<EngineInterface, 'model' | 'store' | 'clock' | 'en
     .catch(error => $.ui.log(`progress.md was rewritten but review:at was not saved: ${String(error)}`))
 }
 
-async function askNative($: Pick<EngineInterface, 'store' | 'ui' | 'config'>) {
+async function askNative($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'config'>) {
   if ((await $.store.get('native:asked')) !== undefined) return
   await $.store.set('native:asked', true)
   const value = (await $.ui.ask(NATIVE_QUESTION, { options: ['French', 'Spanish', 'German'], header: 'English' })).trim()
@@ -148,6 +148,7 @@ async function askNative($: Pick<EngineInterface, 'store' | 'ui' | 'config'>) {
   )
   if (deny === undefined) return
   await $.store.set(NATIVE_STORE, value)
+  await update($, revision, n => n + 1)
   $.ui.log(`the native language was kept in the coach's store, not in the settings: ${deny}`)
 }
 
