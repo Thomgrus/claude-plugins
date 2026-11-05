@@ -45,7 +45,9 @@ const start = async (
   let afters = 0
   let settle: () => void = () => undefined
   let read: () => void = () => undefined
+  let wrote: () => void = () => undefined
   const done = new Promise<void>(resolve => (settle = resolve))
+  const logged = new Promise<void>(resolve => (wrote = resolve))
   const checked = new Promise<void>(resolve => (read = resolve))
   on('session.id', () => ({ value: 'me' }))
   on('session.cwd', () => ({ value: '/w' }))
@@ -77,11 +79,13 @@ const start = async (
   on('ui.log', (_$, e) => {
     events.push({ log: e.text })
     settle()
+    wrote()
     return { value: undefined }
   })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('session.attach', (_$, e) => ({ clientId: e.clientId }))
   await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive })
-  return { events, afters, done, checked }
+  return { events, afters, done, checked, logged }
 }
 
 const QUESTION = 'The English coach looks for the calques and false friends your native language brings. Which one is it?'
@@ -117,11 +121,60 @@ test('a dismissed question is logged and saves nothing', async ($, on) => {
   expect(String((run.events[2] as { log: string }).log)).toContain('the native language was not asked')
 })
 
-test('a refused save is logged', async ($, on) => {
+test('a refused save keeps the answer in the store and logs why', async ($, on) => {
   const run = await start($, on, { answer: answered('French'), save: () => ({ deny: 'read-only' }) })
+  await run.logged
+  expect(run.events.slice(2)).toEqual([
+    { config: 'english-coach.nativeLanguage', value: 'French' },
+    { set: 'native' },
+    { log: "the native language was kept in the coach's store, not in the settings: read-only" },
+  ])
+})
+
+test('a save that throws keeps the answer in the store', async ($, on) => {
+  const run = await start($, on, {
+    answer: answered('French'),
+    save: () => {
+      throw new Error('no /config row with key english-coach.nativeLanguage')
+    },
+  })
+  await run.logged
+  expect(run.events).toContainEqual({ set: 'native' })
+})
+
+test('a desktop client attaching to a session asks for the native language', async ($, on) => {
+  const run = await start($, on, { isInteractive: false, answer: answered('French') })
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
   await run.done
-  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: false })
-  expect(run.events).toContainEqual({ log: 'the native language was not saved: read-only' })
+  expect(run.events).toEqual([{ set: 'native:asked' }, { ask: 'AskUserQuestion' }, { config: 'english-coach.nativeLanguage', value: 'French' }])
+})
+
+test('a desktop client attaching with the setting filled does not ask', { options: { nativeLanguage: 'French' } }, async ($, on) => {
+  const run = await start($, on, { isInteractive: false, answer: answered('French') })
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+  expect(run.afters).toBe(1)
+})
+
+test('a native language kept in the store reaches Haiku', async ($, on) => {
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: 1000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: PROGRESS }))
+  on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('store.get', (_$, e) => ({ value: e.key === 'native' ? 'French' : undefined }))
+  on('store.set', () => ({ value: undefined }))
+  const prompt = new Promise(resolve =>
+    on('model.complete', ($, e) => {
+      resolve(e.prompt)
+      return { value: { isAnswered: true, text: 'English tips: none', usage: USAGE } }
+    }),
+  )
+
+  await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
+  expect(String(await prompt)).toContain('<native-language>French</native-language>')
 })
 
 test('the pane shows the setting hint only while it is empty', async ($, on) => {

@@ -38,13 +38,14 @@ const PANE = 'english'
 const COUNTED = ['composer', 'bridge']
 const CUT = 8000
 const NATIVE_KEY = 'english-coach.nativeLanguage'
+const NATIVE_STORE = 'native'
 const NATIVE_QUESTION = 'The English coach looks for the calques and false friends your native language brings. Which one is it?'
 const NATIVE_HINT = '_Set `english-coach.nativeLanguage` in `/config`: the coach then looks for the calques and false friends your native language brings._'
 const WORKTREE = /^gitdir:\s*(.+)\/\.git\/worktrees\/[^/]+\s*$/m
 const PAUSED_STATUS = 'English coach paused in this project · /english resume'
 const PAUSED_HINT = '**Paused in this project.** Your messages here are not checked or counted. Run `/english resume` to start again.'
 const PAUSED_NOTE = 'Your messages here are not checked or counted. Run /english resume to start again.'
-const NATIVE_NOTE = 'Set english-coach.nativeLanguage in /config: the coach then looks for the calques and false friends your native language brings.'
+const NATIVE_NOTE = 'Set it in Customize › Plugins › english-coach › Settings: the coach then looks for the calques and false friends your native language brings.'
 const ROLLED_NOTE = 'No recent turns: older months keep totals only, see History.'
 const LEVELS = ['', 'Basics', 'Natural phrasing', 'Nuance']
 const VIEWS = [
@@ -141,8 +142,17 @@ async function askNative($: Pick<EngineInterface, 'store' | 'ui' | 'config'>) {
   await $.store.set('native:asked', true)
   const value = (await $.ui.ask(NATIVE_QUESTION, { options: ['French', 'Spanish', 'German'], header: 'English' })).trim()
   if (value === '') return
-  const { deny } = await $.config.set({ key: NATIVE_KEY, value })
-  if (deny !== undefined) $.ui.log(`the native language was not saved: ${deny}`)
+  const deny = await $.config.set({ key: NATIVE_KEY, value }).then(
+    result => result.deny,
+    error => String(error),
+  )
+  if (deny === undefined) return
+  await $.store.set(NATIVE_STORE, value)
+  $.ui.log(`the native language was kept in the coach's store, not in the settings: ${deny}`)
+}
+
+async function nativeOf($: Pick<EngineInterface, 'store'>, setting: string) {
+  return setting !== '' ? setting : String((await $.store.get(NATIVE_STORE)) ?? '')
 }
 
 async function rollUp($: Pick<EngineInterface, 'store' | 'clock' | 'session'>) {
@@ -434,6 +444,11 @@ export const register: Register = (on, options) => {
     return next(e)
   })
 
+  on('session.attach', { surface: 'desktop' }, async ($, e, next) => {
+    if (native === '') $.clock.after(0, () => askNative($).catch(error => $.ui.log(`the native language was not asked: ${String(error)}`)))
+    return next(e)
+  })
+
   on('prompt.submit', async ($, e, next) => {
     const result = await next(e)
     if (!COUNTED.includes(e.origin.kind) || result.drop !== undefined) return result
@@ -449,10 +464,10 @@ export const register: Register = (on, options) => {
       const path = await progressPath($)
       if (!(await $.fs.exists(path))) await $.fs.write(path, TEMPLATE)
       const progress = await $.fs.read(path)
-      const [id, session] = await Promise.all([$.clock.now(), $.session.id()])
+      const [id, session, language] = await Promise.all([$.clock.now(), $.session.id(), nativeOf($, native)])
       await update($, check, () => ({ id, tips: null }))
       $.clock.after(0, () =>
-        coach($, id, session, progress, native, text).catch(async error => {
+        coach($, id, session, progress, language, text).catch(async error => {
           $.ui.log(`the check failed: ${String(error)}`)
           await update($, check, current => (current?.id === id && current.tips === null ? null : current)).catch(cleared =>
             $.ui.log(`the check band was not cleared: ${String(cleared)}`),
@@ -524,11 +539,12 @@ export const register: Register = (on, options) => {
     await read($, revision)
     const keys = await $.store.keys()
     const sessionKeys = keys.filter(key => key.startsWith('session:'))
-    const [turns, rollups, id, paused] = await Promise.all([
+    const [turns, rollups, id, paused, language] = await Promise.all([
       sessions($, sessionKeys),
       Promise.all(keys.filter(key => key.startsWith('rollup:')).map(async key => ((await $.store.get(key)) ?? {}) as Monthly)),
       $.session.id(),
       isPaused($),
+      nativeOf($, native),
     ])
     const all = turns.flat().sort((x, y) => x.ts - y.ts)
     const months = merge([...rollups, monthly(all)])
@@ -543,7 +559,7 @@ export const register: Register = (on, options) => {
       return (
         <Box flexDirection="column" gap={1}>
           {paused && <Markdown text={PAUSED_HINT} />}
-          {native === '' && <Markdown text={NATIVE_HINT} />}
+          {language === '' && <Markdown text={NATIVE_HINT} />}
           <Markdown text={table([totalsRow('All sessions', Object.values(months).reduce(add, ZERO)), row('This session', mine)])} />
           <Markdown text={section('By day', days.length === 0 ? '' : table(days))} />
           <Markdown text={section('By month', monthList.length === 0 ? '' : table(monthList))} />
@@ -567,7 +583,7 @@ export const register: Register = (on, options) => {
         <Button role="dismiss" onPress={() => $.ui.close({ id: PANE }).catch(error => $.ui.log(`the pane was not closed: ${String(error)}`))}>
           Close
         </Button>
-        {strip(pane, [paused && 'paused', native === '' && 'native', current?.tips === null && 'checking'])}
+        {strip(pane, [paused && 'paused', language === '' && 'native', current?.tips === null && 'checking'])}
         {!empty && (
           <Box flexDirection="row" flexWrap="wrap" gap={1}>
             {VIEWS.map(([key, label, hotkey]) => (
