@@ -251,6 +251,13 @@ test('/english native says the setting still wins when the store gets the langua
   expect(run.text).toBe('Native language set to Spanish. The settings refused the change (read-only), so the coach keeps it in its own store, and the `english-coach.nativeLanguage` setting (French) still wins.')
 })
 
+test('/english native says nothing was cleared when the settings refuse it and the setting holds a language', { options: { nativeLanguage: 'French' } }, async ($, on) => {
+  const { saved } = command(on, () => ({ deny: 'read-only' }))
+  const run = await english($, 'native')
+  expect(run.text).toBe('Native language not cleared: the settings refused the change (read-only), and the `english-coach.nativeLanguage` setting (French) still applies.')
+  expect(saved).toEqual([''])
+})
+
 test('the pane has no hint once the language is kept in the store', async ($, on) => {
   on('store.keys', () => ({ value: ['native'] }))
   on('store.get', (_$, e) => ({ value: e.key === 'native' ? 'French' : undefined }))

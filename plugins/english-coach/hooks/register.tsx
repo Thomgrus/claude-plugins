@@ -163,6 +163,7 @@ async function setNative($: Pick<EngineInterface, 'store' | 'state'>, value: str
 function nativeReply(value: string, deny: string | undefined, setting: string) {
   const done = value === '' ? 'Native language cleared.' : `Native language set to ${value}.`
   if (deny === undefined) return done
+  if (value === '' && setting !== '') return `Native language not cleared: the settings refused the change (${deny}), and the \`${NATIVE_KEY}\` setting (${setting}) still applies.`
   const kept = value === '' ? '' : ', so the coach keeps it in its own store'
   const wins = setting === '' ? '.' : `, and the \`${NATIVE_KEY}\` setting (${setting}) still wins.`
   return `${done} The settings refused the change (${deny})${kept}${wins}`
