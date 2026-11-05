@@ -142,18 +142,30 @@ async function askNative($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'co
   await $.store.set('native:asked', true)
   const value = (await $.ui.ask(NATIVE_QUESTION, { options: ['French', 'Spanish', 'German'], header: 'English' })).trim()
   if (value === '') return
+  const deny = await keepNative($, value)
+  if (deny !== undefined) $.ui.log(`the native language was kept in the coach's store, not in the settings: ${deny}`)
+}
+
+async function keepNative($: Pick<EngineInterface, 'store' | 'state' | 'config'>, value: string) {
   const deny = await $.config.set({ key: NATIVE_KEY, value }).then(
     result => result.deny,
     error => String(error),
   )
-  if (deny === undefined) return
-  await setNative($, value)
-  $.ui.log(`the native language was kept in the coach's store, not in the settings: ${deny}`)
+  await setNative($, deny === undefined ? '' : value)
+  return deny
 }
 
 async function setNative($: Pick<EngineInterface, 'store' | 'state'>, value: string) {
   await (value === '' ? $.store.delete(NATIVE_STORE) : $.store.set(NATIVE_STORE, value))
   await update($, revision, n => n + 1)
+}
+
+function nativeReply(value: string, deny: string | undefined, setting: string) {
+  const done = value === '' ? 'Native language cleared.' : `Native language set to ${value}.`
+  if (deny === undefined) return done
+  const kept = value === '' ? '' : ', so the coach keeps it in its own store'
+  const wins = setting === '' ? '.' : `, and the \`${NATIVE_KEY}\` setting (${setting}) still wins.`
+  return `${done} The settings refused the change (${deny})${kept}${wins}`
 }
 
 async function nativeOf($: Pick<EngineInterface, 'store'>, setting: string) {
@@ -495,9 +507,8 @@ export const register: Register = (on, options) => {
     const [verb = '', ...words] = e.args.trim().split(/\s+/)
     if (verb.toLowerCase() === 'native') {
       const value = words.join(' ')
-      const setting = native === '' ? '' : ` The \`${NATIVE_KEY}\` setting (${native}) still wins over it.`
-      return setNative($, value).then(
-        () => ({ text: (value === '' ? 'Native language cleared.' : `Native language set to ${value}.`) + setting }),
+      return keepNative($, value).then(
+        deny => ({ text: nativeReply(value, deny, native) }),
         error => ({ text: `the native language was not ${value === '' ? 'cleared' : 'set'} (${String(error)})` }),
       )
     }
