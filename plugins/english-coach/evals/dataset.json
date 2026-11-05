@@ -97,7 +97,7 @@
   {
     "id": "french-sentence",
     "message": "Can you add a test for the edge case? Je pense que ça casse quand la liste est vide.",
-    "mistakes": [{ "category": "other", "wrong": "Je pense que ça casse quand la liste est vide", "fix": "I think it breaks when the list is empty", "match": "je pense que ça casse|ça casse quand la liste|liste est vide" }]
+    "mistakes": [{ "category": "translation", "wrong": "Je pense que ça casse quand la liste est vide", "fix": "I think it breaks when the list is empty", "match": "je pense que ça casse|ça casse quand la liste|liste est vide" }]
   },
   {
     "id": "informations",
@@ -136,6 +136,16 @@
     "id": "at-monday",
     "message": "I will push the fix this evening, the release is planned at Monday.",
     "mistakes": [{ "category": "preposition", "wrong": "planned at Monday", "fix": "planned for Monday", "match": "at monday" }]
+  },
+  {
+    "id": "french-line-after-english",
+    "message": "The tenant id could live in environment.json with the rest of the config.\nÀ quoi sert le tenant exactement ?",
+    "mistakes": [{ "category": "translation", "wrong": "À quoi sert le tenant exactement ?", "fix": "What is the tenant for, exactly?", "match": "sert le tenant" }]
+  },
+  {
+    "id": "trap-borrowed-words",
+    "message": "The rollback was a bit ad hoc, and I had a feeling of déjà vu when the same migration failed again. Can you write a proper rollback script?",
+    "traps": ["ad hoc|déjà vu"]
   },
   {
     "id": "pasted-french-error",

@@ -54,8 +54,9 @@ Answer with only an \`English tips:\` list, one line per mistake, and nothing el
 English tips:
 - "<their phrase>" → "<natural phrase>" [category] <optional short note>
 
-- Categories: [preposition], [calque], [verb-form], [word-order], [capitalization], [pronoun], [article], [word-choice], [other].
+- Categories: [preposition], [calque], [verb-form], [word-order], [capitalization], [pronoun], [article], [word-choice], [translation], [other].
 - Both phrases are always in double quotes. The natural phrase is the corrected text itself, never an instruction; for a part written in another language, quote its English version.
+- A whole sentence or clause the user wrote in another language, outside quoted or pasted text and outside quotation marks, is always a tip, listed first: quote it exactly as written and give its natural English version, category [translation]. Foreign words that English has borrowed are English, never a [translation] tip.
 - Cover every big mistake (up to 5, most important first); skip small ones and typos.
 - A big mistake is a real error at or above the current tip level in the progress file, or one that blocks understanding. Style preferences, synonyms, optional punctuation and correct sentences are never mistakes.
 - Never check quoted or pasted text: blockquotes (lines starting with >), fenced code blocks (commit messages, logs and error output included) and comments inside code. Also ignore code, file paths, commands and names.
