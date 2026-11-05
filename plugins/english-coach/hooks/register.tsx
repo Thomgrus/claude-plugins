@@ -53,7 +53,7 @@ const VIEWS = [
   ['tips', 'Tips', 't'],
   ['history', 'History', 'h'],
 ] as const
-const USAGE = 'Usage: `/english` opens the pane, `/english pause` stops the checks in this project, `/english resume` starts them again.'
+const USAGE = 'Usage: `/english` opens the pane, `/english pause` stops the checks in this project, `/english resume` starts them again, `/english native <language>` sets your native language and `/english native` clears it.'
 
 const revision = atom({ plugin: 'english-coach', key: 'revision' } as const, 0)
 const check = atom({ plugin: 'english-coach', key: 'check' } as const, null)
@@ -147,9 +147,13 @@ async function askNative($: Pick<EngineInterface, 'store' | 'state' | 'ui' | 'co
     error => String(error),
   )
   if (deny === undefined) return
-  await $.store.set(NATIVE_STORE, value)
-  await update($, revision, n => n + 1)
+  await setNative($, value)
   $.ui.log(`the native language was kept in the coach's store, not in the settings: ${deny}`)
+}
+
+async function setNative($: Pick<EngineInterface, 'store' | 'state'>, value: string) {
+  await (value === '' ? $.store.delete(NATIVE_STORE) : $.store.set(NATIVE_STORE, value))
+  await update($, revision, n => n + 1)
 }
 
 async function nativeOf($: Pick<EngineInterface, 'store'>, setting: string) {
@@ -432,7 +436,7 @@ export const register: Register = (on, options) => {
 
   on('session.start', async ($, e, next) => {
     await $.command
-      .register({ name: 'english', description: 'Open the English coach pane, or pause and resume the checks', argumentHint: '[pause|resume]', immediate: true })
+      .register({ name: 'english', description: 'Open the English coach pane, pause and resume the checks, or set your native language', argumentHint: '[pause|resume|native <language>]', immediate: true })
       .catch(error => $.ui.log(`/english was not registered: ${String(error)}`))
     await update($, check, () => null).catch(error => $.ui.log(`the check band was not reset: ${String(error)}`))
     await isPaused($).then(
@@ -486,6 +490,15 @@ export const register: Register = (on, options) => {
       return setPaused($, paused).then(
         () => ({ text: paused ? 'English coach paused in this project: your messages here are not checked until `/english resume`.' : 'English coach resumed in this project: your messages here are checked again.' }),
         error => ({ text: `the coach was not ${paused ? 'paused' : 'resumed'} (${String(error)})` }),
+      )
+    }
+    const [verb = '', ...words] = e.args.trim().split(/\s+/)
+    if (verb.toLowerCase() === 'native') {
+      const value = words.join(' ')
+      const setting = native === '' ? '' : ` The \`${NATIVE_KEY}\` setting (${native}) still wins over it.`
+      return setNative($, value).then(
+        () => ({ text: (value === '' ? 'Native language cleared.' : `Native language set to ${value}.`) + setting }),
+        error => ({ text: `the native language was not ${value === '' ? 'cleared' : 'set'} (${String(error)})` }),
       )
     }
     if (arg !== '') return { text: USAGE }

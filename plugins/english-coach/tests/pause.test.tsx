@@ -60,7 +60,7 @@ test('another argument returns the usage line and changes nothing', async ($, on
   const { store, statuses } = project(on)
 
   const run = await english($, 'stop')
-  expect(run.text).toBe('Usage: `/english` opens the pane, `/english pause` stops the checks in this project, `/english resume` starts them again.')
+  expect(run.text).toBe('Usage: `/english` opens the pane, `/english pause` stops the checks in this project, `/english resume` starts them again, `/english native <language>` sets your native language and `/english native` clears it.')
   expect([...store]).toEqual([])
   expect(statuses).toEqual([])
 })
