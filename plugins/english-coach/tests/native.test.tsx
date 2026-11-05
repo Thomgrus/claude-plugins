@@ -267,3 +267,45 @@ test('the pane has no hint once the language is kept in the store', async ($, on
   expect(await ui.find({ type: 'Markdown', text: HINT })).toBeUndefined()
   await ui.unmount()
 })
+
+test('/english native with no language clears the stored one when the settings refuse it and no setting is set', async ($, on) => {
+  const { store } = command(on, () => ({ deny: 'read-only' }))
+  const run = await english($, 'native')
+  expect(run.text).toBe('Native language cleared. The settings refused the change (read-only).')
+  expect([...store]).toEqual([])
+})
+
+test('/english native keeps a refused language in the store even when a setting is set', { options: { nativeLanguage: 'French' } }, async ($, on) => {
+  const { store, saved } = command(on, () => ({ deny: 'read-only' }))
+  await english($, 'native Spanish')
+  expect(saved).toEqual(['Spanish'])
+  expect([...store]).toEqual([['native', 'Spanish']])
+})
+
+test('/english native reads the verb in any case and keeps the language as typed', async ($, on) => {
+  const { saved } = command(on, value => ({ value }))
+  const run = await english($, '  NATIVE   Brazilian   Portuguese ')
+  expect(run.text).toBe('Native language set to Brazilian Portuguese.')
+  expect(saved).toEqual(['Brazilian Portuguese'])
+})
+
+test('/english native says the language was not set when the store fails', async ($, on) => {
+  on('store.get', () => ({ value: undefined }))
+  on('config.set', (_$, e) => ({ value: e.value }))
+  on('store.delete', () => {
+    throw new Error('disk full')
+  })
+  const run = await english($, 'native Spanish')
+  expect(String(run.text)).toStartWith('the native language was not set (')
+})
+
+test('an accepted answer drops a language kept in the store', async ($, on) => {
+  const deleted = new Promise(resolve =>
+    on('store.delete', (_$, e) => {
+      resolve(e.key)
+      return { value: undefined }
+    }),
+  )
+  await start($, on, { answer: answered('French') })
+  expect(await deleted).toBe('native')
+})
