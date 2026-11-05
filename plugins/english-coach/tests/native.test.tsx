@@ -85,7 +85,7 @@ const start = async (
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
   on('session.attach', (_$, e) => ({ clientId: e.clientId }))
   await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive })
-  return { events, afters, done, checked, logged }
+  return { events, afters: () => afters, done, checked, logged }
 }
 
 const QUESTION = 'The English coach looks for the calques and false friends your native language brings. Which one is it?'
@@ -106,12 +106,12 @@ test('a session after the question was asked does not ask again', async ($, on) 
 
 test('a session with the setting filled does not schedule the question', { options: { nativeLanguage: 'French' } }, async ($, on) => {
   const run = await start($, on, { answer: answered('French') })
-  expect(run.afters).toBe(1)
+  expect(run.afters()).toBe(1)
 })
 
 test('a non-interactive session does not schedule the question', async ($, on) => {
   const run = await start($, on, { isInteractive: false, answer: answered('French') })
-  expect(run.afters).toBe(1)
+  expect(run.afters()).toBe(1)
 })
 
 test('a dismissed question is logged and saves nothing', async ($, on) => {
@@ -152,7 +152,7 @@ test('a desktop client attaching to a session asks for the native language', asy
 test('a desktop client attaching with the setting filled does not ask', { options: { nativeLanguage: 'French' } }, async ($, on) => {
   const run = await start($, on, { isInteractive: false, answer: answered('French') })
   await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
-  expect(run.afters).toBe(1)
+  expect(run.afters()).toBe(1)
 })
 
 test('a native language kept in the store reaches Haiku', async ($, on) => {
