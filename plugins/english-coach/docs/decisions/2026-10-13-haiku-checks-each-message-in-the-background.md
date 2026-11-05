@@ -96,3 +96,22 @@ Consequences:
 - A list inside a fence that is never closed is read only when the last header outside a fence gives neither a list nor a `none` line; a `none` line or a list there never replaces what that header gives. An earlier list outside the fence, followed by a header with no tips, is ignored in favor of the list in the fence.
 - A fence marker with text after it (three backticks then a period) does not close the fence: the lines after it stay inside until a bare marker.
 - `stripPasted` keeps its own pass, since it also tracks the paste tags; the two share the `OPEN` and `CLOSE` patterns, not the loop.
+
+## Amended 2026-11-05: the desktop app asks too, and the store keeps a refused answer
+
+The question in the Decision above never showed in the desktop app. The desktop Code tab runs Claude Code through the SDK, so `session.start` comes with `isInteractive` false, and the app has no install form for `userConfig` ([anthropics/claude-code#89749](https://github.com/anthropics/claude-code/issues/89749)). The setting stayed empty unless the user found Customize › Plugins › english-coach › Settings. Once asked, the answer was lost too: in desktop and `-p` sessions `$.config.set` throws `no /config row with key english-coach.nativeLanguage` until `/reload-plugins` ([anthropics/claude-code#100926](https://github.com/anthropics/claude-code/issues/100926)), even when the setting already holds a value.
+
+- A `session.attach` hook filtered on the `desktop` surface schedules `askNative` while the setting is empty. It shares the `native:asked` flag with the `session.start` path, so the question is asked once across surfaces.
+- `keepNative` in `hooks/register.tsx` is the one way the language is written. It tries `$.config.set` first. When the settings accept, the store key `native` is deleted; when they refuse or throw, the value goes to `native` (an empty value deletes it). Both then bump the `revision` atom, so an open pane redraws.
+- `nativeOf` reads the setting and falls back to the store key, for the Haiku prompt and for the pane hint. The setting always wins.
+- `/english native <language>` and `/english native` (clear) go through `keepNative`. Their reply says when the settings refused the change, when the store kept the language instead, and when a filled setting still wins.
+- The note outside the terminal points to Customize › Plugins; the terminal hint still points to `/config`.
+
+Not chosen: making `nativeLanguage` required (a required field with no value fails the plugin load, and the desktop app shows only a notice, no form); dropping the `isInteractive` check on `session.start` (it would also ask in `-p` runs, where `$.ui.ask` rejects); a store-only command (it could never change the setting, which wins).
+
+Consequences:
+
+- The language can live in two places. A language kept in the store while the settings refuse changes stays until a later change is accepted or `/english native` clears it.
+- A refused clear deletes the stored copy, but a filled setting still applies; the reply says so.
+- `native` is read from the options when the plugin registers. A setting change reloads the plugin; until then the pane and Haiku use the value read at register time, so between an accepted change that drops a stored language and the reload, the pane can show the hint and Haiku gets no language.
+- In one live run, a session opened by another session kept the first option with no dialog seen. Whether the app answers the question by itself for a session not on screen is not known; `/english native` is the way out.

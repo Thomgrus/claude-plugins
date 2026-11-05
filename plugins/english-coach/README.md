@@ -8,6 +8,7 @@ A Claude Code plugin for people who practise English while they work with Claude
 - `/english` opens a pane with your progress across all sessions: findings per turn, errors per 100 words, clean turns and words, a chart of the last 30 turns, a by-day table, a by-month table and the recent turns. It opens even while Claude is still working.
 - A progress file tracks your recurring mistakes and your tip level. Sonnet reviews it from your tips when a session starts.
 - `/english pause` stops the checks in the current project, for a demo or when you write in another language on purpose, and `/english resume` starts them again. The status line and the pane say when the coach is paused.
+- `/english native <language>` sets your native language, and `/english native` clears it.
 
 ## Install
 
@@ -16,7 +17,7 @@ claude plugin marketplace add Thomgrus/claude-plugins
 claude plugin install english-coach@tgruson-public
 ```
 
-Restart Claude Code. The first session asks for your native language, unless the install already did: the coach uses it to look for the calques and false friends it brings. Change it later in `/config` (*Native language · english-coach*). Your first message creates the progress file at `~/.claude/english-coach/progress.md`; edit it to start at a higher tip level.
+Restart Claude Code. The first session asks for your native language, unless the install already did: the coach uses it to look for the calques and false friends it brings. In the terminal it asks when the session starts; in the desktop app, which has no install form, it asks when the window opens the session. Change it later with `/english native <language>`, in `/config` (*Native language · english-coach*) in the terminal, or in Customize › Plugins › english-coach › Settings in the desktop app. Your first message creates the progress file at `~/.claude/english-coach/progress.md`; edit it to start at a higher tip level.
 
 ## How it works
 
@@ -25,6 +26,7 @@ Restart Claude Code. The first session asks for your native language, unless the
 - **The review**: when a session starts and 10 messages were checked since the last review, one Sonnet call rewrites the progress file from the stored tips. Nothing is added to Claude's context. See [docs/decisions](docs/decisions/2026-10-13-sonnet-reviews-the-progress-file-at-session-start.md).
 - **History**: each turn is stored in the plugin's store, one key per session. See [docs/decisions](docs/decisions/2026-10-13-turn-history-in-store-one-key-per-session.md).
 - **Roll-ups**: sessions older than last month are rolled up into monthly totals when a session starts. See [docs/decisions](docs/decisions/2026-10-07-monthly-roll-ups-one-key-per-rolled-session.md).
+- **The native language**: it is the plugin setting `nativeLanguage`. When the settings refuse a change, as the desktop app does until `/reload-plugins` ([anthropics/claude-code#100926](https://github.com/anthropics/claude-code/issues/100926)), the coach keeps the language in its own store instead. A filled setting always wins over the stored one. See [docs/decisions](docs/decisions/2026-10-13-haiku-checks-each-message-in-the-background.md).
 - **The pause**: `/english pause` stores one key per project in the plugin's store, so it survives a restart. Worktrees share the pause of their main checkout. While paused, nothing is sent to Haiku and no turn is stored. See [docs/decisions](docs/decisions/2026-11-02-pause-per-project-in-store.md).
 
 ## Limitations
@@ -33,6 +35,7 @@ Restart Claude Code. The first session asks for your native language, unless the
 - **Pasted text**: blockquotes (lines starting with `>`) and fenced code blocks are removed before the check, so Haiku never reads them and they do not count toward the word totals. A message with nothing else is not checked. Inline quotes, inline code and indented code are still sent; Haiku is told to ignore them, and they still count. A fence opens at any indent, so a fence inside a list item is removed too; the cost is that a lone indented line of three backticks, never closed, removes the rest of the message from the check. The tag lines the composer wraps around a multi-line paste are removed too; the pasted prose is checked like typed text. What is left is cut at 8,000 characters.
 - **Parallel sessions**: turns are never lost, since each session has its own key. Two sessions that start together can both run the Sonnet review. The review checks that the progress file did not change before writing it, but that is not a lock.
 - **Pause scope**: the pause follows the folder the session starts in. A subfolder, a submodule or a symlinked path of a paused project is not paused. Other sessions already open in the project stop or restart their checks at once. Their status line catches up on their next message, and their open pane shows the change only when it is reopened or a check redraws it.
+- **Native language question**: it is asked once, in the first terminal session or the first desktop window, whichever comes first, even if that session cannot show the dialog. A session opened by another session in the desktop app kept the first option once with no dialog seen; if that happens, set the right language with `/english native <language>`.
 - **Privacy**: every message you type is sent to Haiku. The store and the progress file keep excerpts of your messages in plain text.
 
 ## Development
