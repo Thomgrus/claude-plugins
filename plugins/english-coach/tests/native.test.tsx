@@ -45,7 +45,9 @@ const start = async (
   let afters = 0
   let settle: () => void = () => undefined
   let read: () => void = () => undefined
+  let wrote: () => void = () => undefined
   const done = new Promise<void>(resolve => (settle = resolve))
+  const logged = new Promise<void>(resolve => (wrote = resolve))
   const checked = new Promise<void>(resolve => (read = resolve))
   on('session.id', () => ({ value: 'me' }))
   on('session.cwd', () => ({ value: '/w' }))
@@ -77,11 +79,13 @@ const start = async (
   on('ui.log', (_$, e) => {
     events.push({ log: e.text })
     settle()
+    wrote()
     return { value: undefined }
   })
   on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('session.attach', (_$, e) => ({ clientId: e.clientId }))
   await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive })
-  return { events, afters, done, checked }
+  return { events, afters: () => afters, done, checked, logged }
 }
 
 const QUESTION = 'The English coach looks for the calques and false friends your native language brings. Which one is it?'
@@ -102,12 +106,12 @@ test('a session after the question was asked does not ask again', async ($, on) 
 
 test('a session with the setting filled does not schedule the question', { options: { nativeLanguage: 'French' } }, async ($, on) => {
   const run = await start($, on, { answer: answered('French') })
-  expect(run.afters).toBe(1)
+  expect(run.afters()).toBe(1)
 })
 
 test('a non-interactive session does not schedule the question', async ($, on) => {
   const run = await start($, on, { isInteractive: false, answer: answered('French') })
-  expect(run.afters).toBe(1)
+  expect(run.afters()).toBe(1)
 })
 
 test('a dismissed question is logged and saves nothing', async ($, on) => {
@@ -117,11 +121,60 @@ test('a dismissed question is logged and saves nothing', async ($, on) => {
   expect(String((run.events[2] as { log: string }).log)).toContain('the native language was not asked')
 })
 
-test('a refused save is logged', async ($, on) => {
+test('a refused save keeps the answer in the store and logs why', async ($, on) => {
   const run = await start($, on, { answer: answered('French'), save: () => ({ deny: 'read-only' }) })
+  await run.logged
+  expect(run.events.slice(2)).toEqual([
+    { config: 'english-coach.nativeLanguage', value: 'French' },
+    { set: 'native' },
+    { log: "the native language was kept in the coach's store, not in the settings: read-only" },
+  ])
+})
+
+test('a save that throws keeps the answer in the store', async ($, on) => {
+  const run = await start($, on, {
+    answer: answered('French'),
+    save: () => {
+      throw new Error('no /config row with key english-coach.nativeLanguage')
+    },
+  })
+  await run.logged
+  expect(run.events).toContainEqual({ set: 'native' })
+})
+
+test('a desktop client attaching to a session asks for the native language', async ($, on) => {
+  const run = await start($, on, { isInteractive: false, answer: answered('French') })
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
   await run.done
-  await $.session.start({ cwd: '/w', surface: 'terminal', isInteractive: false })
-  expect(run.events).toContainEqual({ log: 'the native language was not saved: read-only' })
+  expect(run.events).toEqual([{ set: 'native:asked' }, { ask: 'AskUserQuestion' }, { config: 'english-coach.nativeLanguage', value: 'French' }])
+})
+
+test('a desktop client attaching with the setting filled does not ask', { options: { nativeLanguage: 'French' } }, async ($, on) => {
+  const run = await start($, on, { isInteractive: false, answer: answered('French') })
+  await $.session.attach({ surface: 'desktop', clientId: 'desktop:default' })
+  expect(run.afters()).toBe(1)
+})
+
+test('a native language kept in the store reaches Haiku', async ($, on) => {
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  on('env.get', () => ({ value: '/home/t' }))
+  on('clock.now', () => ({ value: 1000 }))
+  on('clock.after', () => ({ value: undefined }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.read', () => ({ value: PROGRESS }))
+  on('prompt.submit', ($, e) => ({ text: e.text, context: e.context }))
+  on('store.get', (_$, e) => ({ value: e.key === 'native' ? 'French' : undefined }))
+  on('store.set', () => ({ value: undefined }))
+  const prompt = new Promise(resolve =>
+    on('model.complete', ($, e) => {
+      resolve(e.prompt)
+      return { value: { isAnswered: true, text: 'English tips: none', usage: USAGE } }
+    }),
+  )
+
+  await $.prompt.submit({ text: 'i am doing effort', wait: true, origin: { kind: 'composer' } })
+  expect(String(await prompt)).toContain('<native-language>French</native-language>')
 })
 
 test('the pane shows the setting hint only while it is empty', async ($, on) => {
@@ -142,4 +195,117 @@ test('the pane has no hint once the setting is filled', { options: { nativeLangu
   const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'terminal', component: 'Pane', requestId: 'english', props: PANE_PROPS })
   expect(await ui.find({ type: 'Markdown', text: HINT })).toBeUndefined()
   await ui.unmount()
+})
+
+const command = (on: Parameters<TestBody>[1], save: (value: ConfigValue) => ConfigSetResult) => {
+  const store = new Map<string, unknown>([['native', 'German']])
+  const saved: ConfigValue[] = []
+  on('store.get', (_$, e) => ({ value: store.get(e.key) as never }))
+  on('store.set', (_$, e) => {
+    store.set(e.key, e.value)
+    return { value: undefined }
+  })
+  on('store.delete', (_$, e) => {
+    store.delete(e.key)
+    return { value: undefined }
+  })
+  on('config.set', (_$, e) => {
+    saved.push(e.value)
+    return save(e.value)
+  })
+  return { store, saved }
+}
+
+const english = ($: Parameters<TestBody>[0], args: string) =>
+  $.command.run({ command: 'english', args, origin: { kind: 'composer' }, presentation: { isFullscreen: false, columns: 100 } })
+
+test('/english native saves the language in the settings and drops the stored one', async ($, on) => {
+  const { store, saved } = command(on, value => ({ value }))
+  const run = await english($, 'native Brazilian Portuguese')
+  expect(run.text).toBe('Native language set to Brazilian Portuguese.')
+  expect(saved).toEqual(['Brazilian Portuguese'])
+  expect([...store]).toEqual([])
+})
+
+test('/english native keeps the language in the store when the settings refuse it', async ($, on) => {
+  const { store } = command(on, () => {
+    throw new Error('no /config row with key english-coach.nativeLanguage')
+  })
+  const run = await english($, 'native Spanish')
+  expect(String(run.text)).toStartWith('Native language set to Spanish. The settings refused the change (')
+  expect(String(run.text)).toEndWith(', so the coach keeps it in its own store.')
+  expect([...store]).toEqual([['native', 'Spanish']])
+})
+
+test('/english native with no language clears the settings and the store', async ($, on) => {
+  const { store, saved } = command(on, value => ({ value }))
+  const run = await english($, 'native')
+  expect(run.text).toBe('Native language cleared.')
+  expect(saved).toEqual([''])
+  expect([...store]).toEqual([])
+})
+
+test('/english native says the setting still wins when the store gets the language', { options: { nativeLanguage: 'French' } }, async ($, on) => {
+  command(on, () => ({ deny: 'read-only' }))
+  const run = await english($, 'native Spanish')
+  expect(run.text).toBe('Native language set to Spanish. The settings refused the change (read-only), so the coach keeps it in its own store, and the `english-coach.nativeLanguage` setting (French) still wins.')
+})
+
+test('/english native says nothing was cleared when the settings refuse it and the setting holds a language', { options: { nativeLanguage: 'French' } }, async ($, on) => {
+  const { saved } = command(on, () => ({ deny: 'read-only' }))
+  const run = await english($, 'native')
+  expect(run.text).toBe('Native language not cleared: the settings refused the change (read-only), and the `english-coach.nativeLanguage` setting (French) still applies.')
+  expect(saved).toEqual([''])
+})
+
+test('the pane has no hint once the language is kept in the store', async ($, on) => {
+  on('store.keys', () => ({ value: ['native'] }))
+  on('store.get', (_$, e) => ({ value: e.key === 'native' ? 'French' : undefined }))
+  on('session.id', () => ({ value: 'a' }))
+  on('session.cwd', () => ({ value: '/w' }))
+  const ui = await $.ui.mount({ plugin: 'english-coach', surface: 'terminal', component: 'Pane', requestId: 'english', props: PANE_PROPS })
+  expect(await ui.find({ type: 'Markdown', text: HINT })).toBeUndefined()
+  await ui.unmount()
+})
+
+test('/english native with no language clears the stored one when the settings refuse it and no setting is set', async ($, on) => {
+  const { store } = command(on, () => ({ deny: 'read-only' }))
+  const run = await english($, 'native')
+  expect(run.text).toBe('Native language cleared. The settings refused the change (read-only).')
+  expect([...store]).toEqual([])
+})
+
+test('/english native keeps a refused language in the store even when a setting is set', { options: { nativeLanguage: 'French' } }, async ($, on) => {
+  const { store, saved } = command(on, () => ({ deny: 'read-only' }))
+  await english($, 'native Spanish')
+  expect(saved).toEqual(['Spanish'])
+  expect([...store]).toEqual([['native', 'Spanish']])
+})
+
+test('/english native reads the verb in any case and keeps the language as typed', async ($, on) => {
+  const { saved } = command(on, value => ({ value }))
+  const run = await english($, '  NATIVE   Brazilian   Portuguese ')
+  expect(run.text).toBe('Native language set to Brazilian Portuguese.')
+  expect(saved).toEqual(['Brazilian Portuguese'])
+})
+
+test('/english native says the language was not set when the store fails', async ($, on) => {
+  on('store.get', () => ({ value: undefined }))
+  on('config.set', (_$, e) => ({ value: e.value }))
+  on('store.delete', () => {
+    throw new Error('disk full')
+  })
+  const run = await english($, 'native Spanish')
+  expect(String(run.text)).toStartWith('the native language was not set (')
+})
+
+test('an accepted answer drops a language kept in the store', async ($, on) => {
+  const deleted = new Promise(resolve =>
+    on('store.delete', (_$, e) => {
+      resolve(e.key)
+      return { value: undefined }
+    }),
+  )
+  await start($, on, { answer: answered('French') })
+  expect(await deleted).toBe('native')
 })

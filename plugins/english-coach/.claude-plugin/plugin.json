@@ -1,6 +1,6 @@
 {
   "name": "english-coach",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "English coach for Claude Code: tips in their own card, progress pane and KPIs across sessions",
   "author": {
     "name": "Thomas GRUSON"
